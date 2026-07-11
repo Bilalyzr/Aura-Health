@@ -1,0 +1,470 @@
+Paragraph 0: 
+Paragraph 1: AURA HEALTH
+Paragraph 2: Women's Health Management Platform
+Paragraph 3: with AI-Driven Personalization
+Paragraph 4: Product Requirements Document
+Paragraph 5: & Full-Stack Technical Specification
+Paragraph 6: MVP Stack: React · Node.js / Express · MongoDB
+Paragraph 7: Version 1.0  ·  July 2026
+Paragraph 8: 
+Paragraph 9: Table of Contents
+Paragraph 10: 
+Paragraph 11: Chapter 1 — Product Foundation
+Paragraph 12: 1.1 Executive Summary
+Paragraph 13: Aura Health is a women's health management platform that combines cycle and symptom tracking with AI-driven personalization to help users understand their bodies, manage reproductive and hormonal health conditions, and build sustainable daily routines. The MVP targets a full-stack web application (React frontend, Node/Express backend, MongoDB) with a mobile-responsive design, launching first in India (DPDP-compliant) with an architecture ready for broader regional expansion.
+Paragraph 14: 1.2 Product Vision & Mission
+Paragraph 15: Vision: A world where every woman understands her body well enough to advocate for her own health, supported by technology that adapts to her — not the other way around.
+Paragraph 16: Mission: Deliver an accessible, medically grounded, AI-personalized health companion that tracks cycles, symptoms, and mood; surfaces actionable insight; and connects users to community and clinical support when they need it.
+Paragraph 17: 1.3 Problem Statement
+Paragraph 18: Existing cycle-tracking apps focus narrowly on fertility/period prediction and ignore chronic conditions such as PCOS, endometriosis, and PMDD.
+Paragraph 19: Symptom and mood data is siloed from actionable guidance — users log information but rarely get personalized next steps.
+Paragraph 20: Condition-specific communities are fragmented across generic forums and social media, offering low-quality, unmoderated advice.
+Paragraph 21: Caregivers (partners, guardians) and clinicians (doctors) have no structured way to view relevant health context with the user's consent.
+Paragraph 22: Non-English-first, lower digital-literacy users are underserved by existing apps' UX complexity.
+Paragraph 23: 1.4 Market Analysis
+Paragraph 24: The global femtech market was valued in the low tens of billions of USD as of the mid-2020s and is projected to grow at a double-digit CAGR through the end of the decade, driven by increased health awareness, rising smartphone penetration, and growing willingness to pay for subscription health tools. India specifically represents a large underserved segment: a young population, rising female smartphone ownership, and limited access to gynecological specialists outside metro areas create strong demand for a digital-first triage and education layer. Key trends shaping the category include a shift from pure period-tracking toward holistic hormonal-health platforms, growing regulatory scrutiny of health-data privacy, and rising interest in AI-personalized care plans.
+Paragraph 25: 1.5 Competitor Analysis
+Paragraph 26: 1.6 SWOT Analysis
+Paragraph 27: Strengths
+Paragraph 28: AI-personalized routines tailored to condition (PCOS, endometriosis, PMDD) rather than generic cycle prediction.
+Paragraph 29: Multi-persona design (patient, partner, guardian, doctor, admin) with consented data sharing.
+Paragraph 30: Weaknesses
+Paragraph 31: New entrant with no existing user base or clinical partnerships at launch.
+Paragraph 32: AI recommendations require ongoing clinical review to avoid liability and misinformation risk.
+Paragraph 33: Opportunities
+Paragraph 34: Partnerships with gynecologists and diagnostic labs for referral and data-verification flows.
+Paragraph 35: Underserved regional-language and semi-urban user segments.
+Paragraph 36: Threats
+Paragraph 37: Well-funded incumbents (Flo, Clue) expanding into chronic-condition management.
+Paragraph 38: Tightening health-data regulation (India DPDP, potential future sector-specific health-data rules).
+Paragraph 39: 1.7 User Research Findings
+Paragraph 40: Formative interviews and secondary research (to be validated with primary user studies pre-launch) point to three consistent findings: (1) users abandon cycle-tracking apps within weeks when logging feels like a chore with no payoff; (2) users with diagnosed conditions (PCOS, endometriosis, PMDD) want condition-specific guidance, not generic period prediction; (3) users are willing to share data with a partner or guardian only when they retain granular, revocable control over exactly what is shared.
+Paragraph 41: 1.8 Business Goals (Year 1)
+Paragraph 42: Reach 100,000 registered users within 12 months of public launch.
+Paragraph 43: Achieve 35% Day-30 retention and 20% Day-90 retention.
+Paragraph 44: Convert 8% of active users to a paid tier by month 12.
+Paragraph 45: Onboard 50 verified doctor accounts and 10 partner clinics by month 12.
+Paragraph 46: 1.9 Success Metrics (KPIs)
+Paragraph 47: 1.10 Functional Scope
+Paragraph 48: MVP (Phase 1)
+Paragraph 49: Registration/auth (email, verification, password reset) for patient, partner, guardian, doctor, admin roles.
+Paragraph 50: Onboarding health survey and AI-generated baseline routine.
+Paragraph 51: Cycle, symptom, mood, sleep, water, and medication logging.
+Paragraph 52: Dashboard with daily summary and AI recommendations.
+Paragraph 53: Condition-specific content modules (PCOS, endometriosis, PMDD).
+Paragraph 54: Community forum with moderation.
+Paragraph 55: Consent-based data sharing with partner/guardian/doctor.
+Paragraph 56: Reports & analytics (cycle history, symptom trends) exportable as PDF.
+Paragraph 57: Phase 2+ (Post-MVP)
+Paragraph 58: Telehealth booking integration with partner clinics.
+Paragraph 59: Wearable integration (sleep, heart-rate data).
+Paragraph 60: Multi-language support (Hindi, regional languages).
+Paragraph 61: Advanced AI chat companion with voice interaction.
+Paragraph 62: 1.11 Non-Functional Scope
+Paragraph 63: 1.12 Assumptions
+Paragraph 64: Users have a smartphone or desktop browser with a modern JS engine (evergreen Chrome/Safari/Firefox).
+Paragraph 65: Health content and AI recommendations are wellness guidance, not a diagnostic or prescriptive medical service — the product will carry clear medical disclaimers and encourage clinician consultation for diagnosis or treatment changes.
+Paragraph 66: Initial launch market is India, with UPI/card payment rails available for the paid tier.
+Paragraph 67: 1.13 Constraints
+Paragraph 68: 1.14 Risks & Mitigation
+Paragraph 69: 
+Paragraph 70: Chapter 2 — User Research & Personas
+Paragraph 71: Thirteen personas define the platform's design surface. Each is summarized below with background, goals, pain points, tech comfort, and primary journey; full journey maps for the highest-priority personas (patient sub-types, partner, guardian, doctor, admin) appear in Chapter 3.
+Paragraph 72: College Student
+Paragraph 73: Background: 19, Bengaluru
+Paragraph 74: Goals & Motivations: Understand irregular cycles, manage exam-stress symptoms
+Paragraph 75: Pain Points: Forgets to log daily, embarrassed to discuss symptoms with family
+Paragraph 76: Tech Comfort: High
+Paragraph 77: Primary Journey: Discovers via Instagram ad → quick onboarding → daily quick-log widget
+Paragraph 78: Working Professional
+Paragraph 79: Background: 28, Mumbai
+Paragraph 80: Goals & Motivations: Correlate stress/sleep with cycle, plan around PMS at work
+Paragraph 81: Pain Points: No time for lengthy logging, wants concise insight not raw data
+Paragraph 82: Tech Comfort: High
+Paragraph 83: Primary Journey: Signs up during lunch break → sets reminders → weekly report review
+Paragraph 84: Homemaker
+Paragraph 85: Background: 34, Lucknow
+Paragraph 86: Goals & Motivations: Track family planning, manage household + personal health
+Paragraph 87: Pain Points: Shared device with family, needs privacy/lock features
+Paragraph 88: Tech Comfort: Medium
+Paragraph 89: Primary Journey: Referred by friend → app-lock onboarding → simple daily check-in
+Paragraph 90: Teenager
+Paragraph 91: Background: 15, Delhi (guardian-linked)
+Paragraph 92: Goals & Motivations: Learn about first periods, track cycle onset
+Paragraph 93: Pain Points: Limited independence, needs guardian oversight with dignity
+Paragraph 94: Tech Comfort: High
+Paragraph 95: Primary Journey: Guardian creates linked account → age-appropriate education content
+Paragraph 96: Newly Married Woman
+Paragraph 97: Background: 26, Pune
+Paragraph 98: Goals & Motivations: Plan conception timing, understand fertile window
+Paragraph 99: Pain Points: Conflicting information online, wants a trustworthy single source
+Paragraph 100: Tech Comfort: High
+Paragraph 101: Primary Journey: Onboarding survey flags 'trying to conceive' → fertility-focused dashboard
+Paragraph 102: Pregnancy Planning Individual
+Paragraph 103: Background: 31, Hyderabad
+Paragraph 104: Goals & Motivations: Optimize preconception health, track ovulation precisely
+Paragraph 105: Pain Points: Anxiety around fertility timelines, wants data-backed confidence
+Paragraph 106: Tech Comfort: High
+Paragraph 107: Primary Journey: Detailed survey → BBT/ovulation tracking module → doctor referral prompts
+Paragraph 108: PCOS Patient
+Paragraph 109: Background: 24, Chennai
+Paragraph 110: Goals & Motivations: Manage irregular cycles, weight, and symptom flare-ups
+Paragraph 111: Pain Points: Years of misdiagnosis, wants condition-specific guidance not generic tips
+Paragraph 112: Tech Comfort: Medium-High
+Paragraph 113: Primary Journey: Selects PCOS in survey → tailored routine (diet/exercise/med reminders) → community
+Paragraph 114: Endometriosis Patient
+Paragraph 115: Background: 29, Kolkata
+Paragraph 116: Goals & Motivations: Track pain patterns for doctor visits, manage chronic pain
+Paragraph 117: Pain Points: Pain dismissed by others, needs data to advocate at appointments
+Paragraph 118: Tech Comfort: Medium
+Paragraph 119: Primary Journey: Logs pain intensity/location → generates doctor-ready PDF report
+Paragraph 120: PMDD Patient
+Paragraph 121: Background: 27, Jaipur
+Paragraph 122: Goals & Motivations: Anticipate severe mood symptoms, plan around bad days
+Paragraph 123: Pain Points: Mood swings strain relationships, needs early-warning system
+Paragraph 124: Tech Comfort: Medium
+Paragraph 125: Primary Journey: Mood logging → AI flags luteal-phase risk window → coping-strategy prompts
+Paragraph 126: Guardian
+Paragraph 127: Background: 45, parent
+Paragraph 128: Goals & Motivations: Support teenage daughter's health without invading privacy
+Paragraph 129: Pain Points: Wants visibility into red flags only, not full symptom diary
+Paragraph 130: Tech Comfort: Medium
+Paragraph 131: Primary Journey: Linked account → receives only opt-in alerts (e.g., missed periods, red-flag symptoms)
+Paragraph 132: Partner
+Paragraph 133: Background: 30, spouse/partner
+Paragraph 134: Goals & Motivations: Understand cycle-linked mood changes, be supportive
+Paragraph 135: Pain Points: Doesn't know how to help, wants simple actionable tips
+Paragraph 136: Tech Comfort: Medium-High
+Paragraph 137: Primary Journey: Invited by primary user → sees consented summary → gets 'how to support today' tips
+Paragraph 138: Doctor
+Paragraph 139: Background: 38, gynecologist
+Paragraph 140: Goals & Motivations: Review patient-reported history quickly pre-appointment
+Paragraph 141: Pain Points: Patient recall is unreliable, wants structured longitudinal data
+Paragraph 142: Tech Comfort: Medium
+Paragraph 143: Primary Journey: Patient shares report link → doctor dashboard shows cycle/symptom timeline
+Paragraph 144: Administrator
+Paragraph 145: Background: Internal ops/moderation staff
+Paragraph 146: Goals & Motivations: Moderate community content, manage verified accounts, monitor system health
+Paragraph 147: Pain Points: Needs efficient bulk tools, cannot manually review everything
+Paragraph 148: Tech Comfort: High
+Paragraph 149: Primary Journey: Admin console → moderation queue → analytics dashboard
+Paragraph 150: 
+Paragraph 151: Chapter 3 — Complete User Journeys
+Paragraph 152: 3.1 Primary Flow (New Patient User)
+Paragraph 153: Visitor → Landing Page → Explore Features → Register → Verify Email → Onboarding Survey (persona + condition selection) → AI Routine Setup → Dashboard → Daily Check-in → Community Access (optional) → View Reports → Settings → Logout.
+Paragraph 154: Decision points: at Registration, an invalid/duplicate email routes to an inline error with a 'resend verification' path. At the Onboarding Survey, selecting a diagnosed condition (PCOS/endometriosis/PMDD) branches into a condition-specific question set before the standard baseline questions resume.
+Paragraph 155: 3.2 Partner User Journey
+Paragraph 156: Invited (via link/email from primary user) → Accept Invitation → Create Partner Account → Consent Scope Confirmation (view what primary user has shared) → Partner Dashboard (cycle-phase summary, 'how to support today' tips, no raw symptom logs unless explicitly shared) → Notification Preferences → Logout.
+Paragraph 157: Alternative path: Partner declines invitation → primary user notified invitation was not accepted, can resend or cancel.
+Paragraph 158: 3.3 Guardian User Journey
+Paragraph 159: Create Guardian Account → Add Linked Minor Profile (identity/relationship verification) → Set Alert Preferences (red-flag symptoms, missed-period thresholds) → Guardian Dashboard (alert feed only, no full diary access) → Escalation flow if a red-flag alert fires (in-app notification + optional resource links for seeking care) → Logout.
+Paragraph 160: 3.4 Admin User Journey
+Paragraph 161: Admin Login (MFA required) → Admin Console Home → Moderation Queue (flagged community posts, reported users) → Take Action (approve/remove/warn/ban) → User Management (search, verify doctor credentials, suspend accounts) → System Analytics Dashboard → Audit Log Review → Logout.
+Paragraph 162: 3.5 Returning User (Login)
+Paragraph 163: Landing Page → Login → Credential Validation → (if MFA enabled) OTP Verification → Dashboard. Error state: invalid credentials show inline error after 3 attempts, a CAPTCHA challenge appears; after 5 attempts, temporary lockout with a password-reset prompt.
+Paragraph 164: 3.6 Forgot Password Flow
+Paragraph 165: Login Screen → 'Forgot Password' → Enter Email → Reset Link Sent Confirmation → User Opens Email → Reset Link (expires in 30 minutes) → New Password Form (strength validation) → Success → Redirect to Login. Error states: expired link shows a 'request a new link' prompt; reused link is rejected with the same prompt.
+Paragraph 166: 3.7 Account Deletion Flow
+Paragraph 167: Settings → Account → Delete Account → Confirmation Modal (explains data retention/deletion timeline per DPDP) → Re-authentication (password re-entry) → Final Confirmation → Soft-delete (30-day grace/recovery window) → Hard delete after grace period → Confirmation email.
+Paragraph 168: 3.8 Survey Retake Flow
+Paragraph 169: Settings → Health Profile → 'Retake Survey' → Warning Modal (explains this will regenerate the AI routine) → Survey (pre-filled with prior answers where applicable) → Review Changes Summary → Confirm → New Routine Generated → Dashboard Updated.
+Paragraph 170: 
+Paragraph 171: Chapter 4 — Information Architecture
+Paragraph 172: The sitemap below covers every primary page, submenu, modal, and form in the MVP. Screens marked with an asterisk (*) receive a full specification in Chapter 7.
+Paragraph 173: 4.1 Site Map
+Paragraph 174: Public
+Paragraph 175: Landing Page*
+Paragraph 176: Feature Explorer
+Paragraph 177: Login
+Paragraph 178: Register
+Paragraph 179: Forgot / Reset Password
+Paragraph 180: Dashboard (patient)*
+Paragraph 181: Home / Today's Summary
+Paragraph 182: Health
+Paragraph 183: Cycle Tracking*
+Paragraph 184: Symptoms
+Paragraph 185: Mood Logging
+Paragraph 186: Sleep Tracking
+Paragraph 187: Nutrition
+Paragraph 188: Exercise
+Paragraph 189: Water Intake
+Paragraph 190: Medication
+Paragraph 191: AI Recommendations
+Paragraph 192: Community Forum*
+Paragraph 193: Category Feed
+Paragraph 194: Thread View
+Paragraph 195: New Post
+Paragraph 196: Planner
+Paragraph 197: Reports & Analytics*
+Paragraph 198: Cycle History
+Paragraph 199: Symptom Trends
+Paragraph 200: Export / Share (doctor PDF link)
+Paragraph 201: Settings
+Paragraph 202: Profile
+Paragraph 203: Health Profile / Retake Survey
+Paragraph 204: Notifications
+Paragraph 205: Privacy & Sharing (partner/guardian consent)
+Paragraph 206: Subscription / Billing
+Paragraph 207: Account Deletion
+Paragraph 208: Partner Dashboard
+Paragraph 209: Guardian Dashboard
+Paragraph 210: Doctor Dashboard
+Paragraph 211: Admin Console
+Paragraph 212: Moderation Queue
+Paragraph 213: User Management
+Paragraph 214: Analytics
+Paragraph 215: Audit Log
+Paragraph 216: 4.2 Modals & Popups
+Paragraph 217: 4.3 Notification Types
+Paragraph 218: Push/in-app: daily check-in reminder, medication reminder, AI insight ready, community reply, partner/guardian alert.
+Paragraph 219: Email: verification, password reset, weekly report summary, subscription receipt, security alert (new device login).
+Paragraph 220: 
+Paragraph 221: Chapter 5 — UI/UX Design System
+Paragraph 222: 5.1 Color Palette
+Paragraph 223: Each color additionally defines: hover state (−10% lightness), pressed state (−18% lightness), disabled state (40% opacity over surface), and a two-stop gradient variant (Primary → Accent) reserved for hero sections and the AI-interaction avatar.
+Paragraph 224: 5.2 Typography
+Paragraph 225: Primary typeface: Inter (UI), with a warmer secondary display face (e.g., Fraunces) reserved for hero headlines and milestone/celebration moments to avoid a clinical feel.
+Paragraph 226: 5.3 Iconography
+Paragraph 227: Two icon families ship at launch: Outlined (default, 1.5px stroke) for navigation and inline UI, and Filled for active/selected states.
+Paragraph 228: A small set of custom animated icons (flower bloom, droplet fill, moon phase) is reserved for milestone moments — not used for routine navigation to avoid motion fatigue.
+Paragraph 229: Rounded corner-radius variant of all icons is used app-wide to match the component corner-radius scale (see 5.4).
+Paragraph 230: 5.4 Core Components (representative set)
+Paragraph 231: Button
+Paragraph 232: Card
+Paragraph 233: 12px corner radius, 1px border (#EFE3ED) with 0 1px 3px rgba(46,34,51,0.06) resting shadow; hover elevation only for interactive cards (e.g., dashboard widgets that open a detail view).
+Paragraph 234: Input Field
+Paragraph 235: 40px height, 8px radius, 1px border (#D9CBDA) at rest, 2px Primary border + subtle glow on focus, Error state swaps border to Error color plus inline helper text below in Error color.
+Paragraph 236: Modal
+Paragraph 237: Centered, max-width 480px on desktop / full-width sheet on mobile, 16px radius, entrance: fade + 8px upward slide, 200ms ease-out; scrim rgba(46,34,51,0.4).
+Paragraph 238: Toast
+Paragraph 239: Bottom-center on mobile, bottom-right on desktop; auto-dismiss 4s (success/info) or persistent with manual dismiss (error); slide-in + fade, 180ms.
+Paragraph 240: The same level of specification (states, spacing, radius, shadow, size variants) applies to every remaining component in the library: Tabs, Dropdown/Select, Checkbox, Radio, Toggle, Slider (for pain-scale input), Progress Bar, Skeleton Loader, Avatar, Badge, Tooltip, Accordion, Date Picker, and the Bottom Navigation bar.
+Paragraph 241: 
+Paragraph 242: Chapter 6 — Animation Design Guide
+Paragraph 243: 6.1 Dashboard Loading Sequence
+Paragraph 244: Step 1 — Flower Bloom: Brand mark petals rotate 360° while a plum→rose gradient fades in. Duration 1.2s, easing cubic-bezier(0.25, 0.46, 0.45, 0.94).
+Paragraph 245: Step 2 — Dashboard Fade-In: Opacity 0→1 over 0.8s, 0.4s delay so it begins as the bloom animation completes.
+Paragraph 246: Overall intent: smooth and delightful without adding perceived latency — the sequence is capped at 1.6s total and is skipped entirely on repeat visits within the same session.
+Paragraph 247: 6.2 Background Ambient Modes
+Paragraph 248: All ambient background modes render at reduced motion (or are disabled entirely) when the OS-level 'prefers-reduced-motion' setting is on.
+Paragraph 249: 6.3 AI Interaction States
+Paragraph 250: Listening: horizontal waveform animation synced to (simulated) input amplitude.
+Paragraph 251: Thinking: pulsing gradient orb, 900ms loop.
+Paragraph 252: Typing: blinking cursor + progressive text reveal, ~28ms per character.
+Paragraph 253: Speaking (if voice enabled Phase 2+): audio waveform visualization synced to playback.
+Paragraph 254: Response complete: gentle 200ms scale-and-settle on the response bubble.
+Paragraph 255: 6.4 Additional Sequences
+Paragraph 256: Survey progress indicator: segmented bar fills left-to-right, 300ms ease per step.
+Paragraph 257: Card slide transitions: 240ms translateX with opacity cross-fade between onboarding/survey cards.
+Paragraph 258: Checkbox bounce on selection: scale 1 → 1.15 → 1, 180ms, spring easing.
+Paragraph 259: Success state: checkmark path draws in over 400ms, followed by a 150ms scale pulse.
+Paragraph 260: Report loading: metric values count up from 0 to final value over 600ms once data resolves.
+Paragraph 261: Charts: bars/lines animate in from baseline over 500ms, staggered 40ms per data point.
+Paragraph 262: Performance target for all motion: 60fps, GPU-accelerated transforms/opacity only (no layout-triggering properties animated).
+Paragraph 263: 
+Paragraph 264: Chapter 7 — Screen Specifications
+Paragraph 265: Every screen in the sitemap (Chapter 4) follows the template demonstrated below. Four representative screens are fully specified here; all remaining screens follow the identical structure — Purpose, User Goal, Components, API Calls, Database Queries, Animation, Responsive Behavior, Accessibility, Empty/Loading/Error states, and Microcopy — and are tracked in the companion Screen Spec backlog for detailing during sprint planning.
+Paragraph 266: 7.1 Landing Page
+Paragraph 267: Purpose: Convert first-time visitors into registered users by communicating the product's value proposition.
+Paragraph 268: User Goal: Understand what the product does and decide whether to sign up.
+Paragraph 269: Components
+Paragraph 270: Hero section with headline, subheadline, primary CTA button ('Get Started')
+Paragraph 271: Feature highlight cards (3–4) with icon + short description
+Paragraph 272: Persona-based testimonial carousel
+Paragraph 273: Footer with legal links (Privacy Policy, Terms, DPDP grievance contact)
+Paragraph 274: API Calls: None (static/public content, optionally GET /api/content/testimonials for CMS-managed copy).
+Paragraph 275: States
+Paragraph 276: Empty: N/A (always has content)
+Paragraph 277: Loading: Skeleton hero block while fonts/images load
+Paragraph 278: Error: If testimonial fetch fails, section is hidden gracefully — no error shown to visitor
+Paragraph 279: 7.2 Dashboard Home
+Paragraph 280: Purpose: Give the returning user a single-glance summary of today's cycle phase, logged data, and AI recommendations.
+Paragraph 281: User Goal: Quickly see 'where am I today' and take one or two quick actions.
+Paragraph 282: Components
+Paragraph 283: Today's Health widget (cycle phase, mood, pain, hydration — see Chapter 8)
+Paragraph 284: AI Recommendation card (top 1–2 suggestions with 'why' expandable)
+Paragraph 285: Quick-log buttons (mood, symptom, water)
+Paragraph 286: Streak / routine-adherence indicator
+Paragraph 287: Community highlight card (top relevant thread)
+Paragraph 288: API Calls: GET /api/dashboard/summary (aggregates cycle, latest logs, AI recs); POST /api/logs/quick for quick-log actions.
+Paragraph 289: States
+Paragraph 290: Empty: First-time state prompts user to complete onboarding survey if not yet done
+Paragraph 291: Loading: Skeleton cards matching final widget shapes, shown max 1.5s before fallback message
+Paragraph 292: Error: Inline retry banner if summary fetch fails; cached last-known summary shown if available
+Paragraph 293: 7.3 Cycle Tracking
+Paragraph 294: Purpose: Let the user log and review cycle start/end dates and flow intensity, and see predicted next cycle.
+Paragraph 295: User Goal: Log today's cycle data and understand where they are in their cycle.
+Paragraph 296: Components
+Paragraph 297: Calendar view with phase color-coding
+Paragraph 298: Flow intensity selector (light/medium/heavy)
+Paragraph 299: Predicted next period + fertile window banner
+Paragraph 300: History list (past 6 cycles) with average length
+Paragraph 301: API Calls: GET /api/cycles, POST /api/cycles, GET /api/cycles/prediction.
+Paragraph 302: States
+Paragraph 303: Empty: No cycles logged yet: prompt to log first period with a short explainer
+Paragraph 304: Loading: Calendar skeleton grid
+Paragraph 305: Error: Prediction service unavailable: calendar still shows logged history, prediction banner replaced with 'Prediction temporarily unavailable'
+Paragraph 306: 7.4 Community Forum — Thread View
+Paragraph 307: Purpose: Let users read and participate in condition-specific discussion threads.
+Paragraph 308: User Goal: Get peer support and share experience safely.
+Paragraph 309: Components
+Paragraph 310: Thread title, category tag, reply count
+Paragraph 311: Post list with upvote, reply, report actions
+Paragraph 312: Reply composer with content-guideline reminder
+Paragraph 313: Moderation badge for admin/verified-doctor replies
+Paragraph 314: API Calls: GET /api/forum/threads/:id, POST /api/forum/threads/:id/replies, POST /api/forum/reports.
+Paragraph 315: States
+Paragraph 316: Empty: No replies yet: 'Be the first to respond' prompt
+Paragraph 317: Loading: Skeleton post list, 3 placeholder rows
+Paragraph 318: Error: Failed to post reply: inline error under composer, draft text preserved
+Paragraph 319: 
+Paragraph 320: Chapter 8 — Dashboard Specification
+Paragraph 321: This chapter exhaustively documents the Dashboard Home widgets. The Today's Health widget is fully specified as the reference implementation; remaining widgets (AI Recommendations, Streak/Adherence, Community Highlight, Upcoming Reminders, Cycle Snapshot) follow the identical schema.
+Paragraph 322: 8.1 Today's Health Widget
+Paragraph 323: Included Metrics
+Paragraph 324: Current Cycle Phase — day number + phase name (Menstrual / Follicular / Ovulatory / Luteal)
+Paragraph 325: Pain Level — 0–10 scale indicator, most recent log
+Paragraph 326: Current Mood — emoji + 1–5 scale
+Paragraph 327: Hydration Status — cups/liters logged vs. personalized daily target
+Paragraph 328: Water Intake Progress Bar — animated fill matching hydration %
+Paragraph 329: Exercise Minutes Logged — today's total vs. weekly goal
+Paragraph 330: Daily Routine Checklist — AI-generated tasks with checkbox completion
+Paragraph 331: Next Reminder — time + notification type (e.g., 'Medication · 6:00 PM')
+Paragraph 332: Visual Design
+Paragraph 333: Card surface (#FAF5F9) with 12px radius; metrics arranged in a 2-column grid on desktop, single column stack on mobile; phase indicator uses the Primary/Accent gradient as a background ring behind the day-number.
+Paragraph 334: Animation on Load
+Paragraph 335: Metric values count up from 0 (numeric) or fade-in (icons/emoji) over 500ms, staggered 60ms per metric to avoid simultaneous motion overload; progress bars animate fill from 0 to current value over 600ms ease-out.
+Paragraph 336: API Integration
+Paragraph 337: GET /api/dashboard/today-health returns an aggregated payload assembled server-side from the cycles, symptomLogs, moodLogs, hydrationLogs, exerciseLogs, and routines collections for the authenticated user, keyed to the current date in the user's stored timezone.
+Paragraph 338: Database Queries (representative)
+Paragraph 339: cycles.findOne({ userId, active: true }) — determine current phase/day
+Paragraph 340: symptomLogs.find({ userId, date: today }).sort({ createdAt: -1 }).limit(1) — latest pain level
+Paragraph 341: moodLogs.find({ userId, date: today }).sort({ createdAt: -1 }).limit(1) — latest mood
+Paragraph 342: hydrationLogs.aggregate([...]) — sum today's intake
+Paragraph 343: routines.findOne({ userId, date: today }) — today's checklist + completion state
+Paragraph 344: User Interaction
+Paragraph 345: Tapping any metric opens the corresponding detail/log screen (e.g., tapping Mood opens Mood Logging).
+Paragraph 346: Checklist items are checkable inline without leaving the dashboard (optimistic UI update, PATCH /api/routines/:id/items/:itemId).
+Paragraph 347: Long-press (mobile) or hover (desktop) on the phase ring shows a tooltip with the phase's typical symptoms.
+Paragraph 348: Component States
+Paragraph 349: Data Refresh
+Paragraph 350: On-demand refresh on pull-to-refresh (mobile) or explicit refresh icon (desktop); automatic silent refresh when a log is created elsewhere in the app (event-driven via client-side cache invalidation, not a persistent websocket connection in MVP).
+Paragraph 351: 8.2 Remaining Widgets (summary)
+Paragraph 352: 
+Paragraph 353: Chapter 9 — AI System Specification
+Paragraph 354: 9.1 Architecture Overview
+Paragraph 355: Personalization is delivered by a hybrid system: a deterministic rule engine handles anything with clinical or safety implications (red-flag detection, contraindication checks), while an LLM-based layer (via the Anthropic API) handles natural-language explanation, routine phrasing, and open-ended Q&A. The LLM never has final say on a safety-relevant recommendation — it explains or rephrases outputs the rule engine has already approved.
+Paragraph 356: 9.2 Prompt Structure
+Paragraph 357: Each AI call is assembled from three layers: a fixed base system prompt (product context, tone, safety constraints, explicit instruction to defer diagnosis to clinicians), a variable context block (the user's condition tags, recent 14-day log summary, current cycle phase), and the specific task instruction (e.g., 'generate today's routine' or 'explain this recommendation in under 60 words').
+Paragraph 358: 9.3 Rule Engine
+Paragraph 359: 9.4 Decision Tree (Routine Generation, simplified)
+Paragraph 360: 1. Load user profile (condition tags, preferences, active medications).
+Paragraph 361: 2. Determine current cycle phase from most recent cycle data.
+Paragraph 362: 3. Run red-flag rules against last 7 days of logs — if triggered, short-circuit to escalation output only.
+Paragraph 363: 4. Pull base routine template for phase + condition tag combination from the content library.
+Paragraph 364: 5. Filter out any contraindicated items.
+Paragraph 365: 6. Pass the filtered template + rationale bullets to the LLM layer to produce natural-language phrasing and a short 'why this today' explanation.
+Paragraph 366: 7. Persist the generated routine and serve to the client.
+Paragraph 367: 9.5 Mood Analyzer
+Paragraph 368: Mood logs (1–5 scale plus optional free-text) are aggregated on a rolling basis against cycle-day position. When a user has at least two prior cycles of mood data, the system flags a statistically consistent low-mood window (commonly luteal-phase for PMDD-tagged users) and surfaces an early-warning card 2–3 days ahead of the historical dip, with coping-strategy suggestions drawn from the clinician-reviewed content library.
+Paragraph 369: 9.6 Recommendation System
+Paragraph 370: Recommendations are ranked by a simple weighted score combining: clinical relevance (condition tag match), recency of related logs, and predicted user engagement (based on historical completion rate of similar routine-item types). No recommendation is auto-surfaced from raw LLM generation without passing through the rule-engine relevance/safety filter first.
+Paragraph 371: 9.7 Explanation Engine
+Paragraph 372: Every AI-surfaced recommendation carries a one-tap 'Why am I seeing this?' affordance that renders the underlying rule/data trigger in plain language (e.g., 'Your logged pain has been higher than usual this week, and it's day 24 of your cycle — many people in the luteal phase find gentle movement and magnesium-rich meals helpful'), sourced from the same rationale bullets generated in the decision tree step above — never a black-box output.
+Paragraph 373: 
+Paragraph 374: Chapter 10 — Backend Architecture
+Paragraph 375: 10.1 Folder Structure
+Paragraph 376: src/config, src/controllers, src/services, src/models, src/routes, src/middleware, src/validators, src/jobs (scheduled tasks — nightly prediction recompute, reminder dispatch), src/utils, src/ai (prompt templates + rule engine), tests/.
+Paragraph 377: 10.2 Layered Responsibilities
+Paragraph 378: 10.3 Authentication & Sessions
+Paragraph 379: JWT: Access token (15 min expiry) signed HS256 with a rotating secret; payload contains userId, role, and a token version for global invalidation on password change.
+Paragraph 380: Refresh Token Flow: Refresh token (7-day expiry) stored as an httpOnly, Secure, SameSite=Strict cookie; POST /api/auth/refresh issues a new access token if the refresh token and stored token-version match; refresh tokens are single-use and rotated on every refresh.
+Paragraph 381: 10.4 Rate Limiting
+Paragraph 382: 10.5 Caching Strategy
+Paragraph 383: Dashboard summary payload cached per-user for 5 minutes (Redis), invalidated immediately on new log write.
+Paragraph 384: Cycle prediction cached until the next nightly recompute job or a new cycle log invalidates it.
+Paragraph 385: Static content library (routine templates, educational articles) cached at the CDN edge with a 24-hour TTL.
+Paragraph 386: 
+Paragraph 387: Chapter 11 — MongoDB Schema
+Paragraph 388: All collections use Mongoose schemas with strict mode enabled and a soft-delete pattern (deletedAt) rather than hard deletes, except where a user explicitly exercises a DPDP erasure request, which triggers a scheduled hard-delete job.
+Paragraph 389: Collection: users
+Paragraph 390: Indexes: email (unique), createdAt, userType
+Paragraph 391: Validation: email valid format; password ≥ 8 chars with complexity rule enforced at the API layer before hashing; userType must match enum
+Paragraph 392: Collection: cycles
+Paragraph 393: Indexes: userId + startDate (compound, for range queries)
+Paragraph 394: Validation: startDate required; endDate, if present, must be ≥ startDate
+Paragraph 395: Collection: symptomLogs / moodLogs / hydrationLogs / exerciseLogs / medicationLogs
+Paragraph 396: Indexes: userId + date (compound)
+Paragraph 397: Validation: value must conform to the per-type schema (e.g. mood 1–5, pain 0–10)
+Paragraph 398: Collection: routines
+Paragraph 399: Indexes: userId + date (compound, unique — one routine per user per day)
+Paragraph 400: Validation: items array required, minimum 1 item
+Paragraph 401: Collection: forumThreads / forumReplies
+Paragraph 402: Indexes: category + createdAt (feed sort), threadId (replies)
+Paragraph 403: Validation: title/body length limits enforced at API layer; status defaults to visible
+Paragraph 404: Collection: consents
+Paragraph 405: Indexes: ownerId + granteeId (compound, unique)
+Paragraph 406: Validation: scope must be a subset of the defined shareable-field allowlist
+Paragraph 407: Collection: auditLogs
+Paragraph 408: Indexes: createdAt, actorId
+Paragraph 409: Validation: Append-only; no update/delete operations permitted at the application layer
+Paragraph 410: 
+Paragraph 411: Chapter 12 — API Documentation
+Paragraph 412: The full API is published as an OpenAPI 3.0 specification (swagger.yaml) alongside this document. The table below summarizes the core MVP endpoint surface; the register endpoint is shown in full detail as the reference format for every entry in the OpenAPI file.
+Paragraph 413: 12.1 Reference Endpoint — POST /api/auth/register
+Paragraph 414: 12.2 Core Endpoint Summary
+Paragraph 415: 12.3 Standard Error Envelope
+Paragraph 416: All error responses share a consistent shape: { success: false, error: { code, message, details? } }, with HTTP status codes used consistently (400 validation, 401 unauthenticated, 403 unauthorized/consent-denied, 404 not found, 409 conflict, 422 semantic validation, 429 rate-limited, 500 server error).
+Paragraph 417: 
+Paragraph 418: Chapter 13 — Security Implementation
+Paragraph 419: 13.1 Core Controls
+Paragraph 420: 13.2 Data Protection Compliance (India DPDP Act)
+Paragraph 421: Explicit, granular consent captured at account creation and for every data-sharing relationship (see consents collection).
+Paragraph 422: Purpose limitation: health data used only for the stated personalization/analytics purpose disclosed in the privacy notice.
+Paragraph 423: Right to erasure: account deletion flow (Chapter 3.7) triggers scheduled hard-delete after a 30-day grace window.
+Paragraph 424: Grievance officer contact published in-app and on the website footer, per statutory requirement.
+Paragraph 425: Architecture designed so that expanding to GDPR-aligned markets later mainly requires policy/UX changes, not a data-model rewrite.
+Paragraph 426: 13.3 Audit Logging
+Paragraph 427: Security-relevant and consent-relevant events are written to the append-only auditLogs collection: login (success/failure), password change, consent grant/revoke, admin actions (suspend/ban/content removal), and data export/deletion requests. Logs are retained per the compliance policy and are never exposed to non-admin users.
+Paragraph 428: 
+Paragraph 429: Chapter 14 — CSS Guidelines & Responsive Design
+Paragraph 430: 14.1 Grid System
+Paragraph 431: 12-column grid, 24px gutters on desktop (1025px+), 16px gutters on tablet, 4-column mobile grid with 12px gutters. Base unit: 4px.
+Paragraph 432: 14.2 Spacing Scale
+Paragraph 433: 14.3 Breakpoints
+Paragraph 434: 14.4 CSS Variables
+Paragraph 435: All colors (Chapter 5.1), spacing tokens, and typography sizes are exposed as CSS custom properties (--color-primary, --space-md, --font-size-body, etc.) rather than hard-coded in components, enabling the single light/dark theme swap described below.
+Paragraph 436: 14.5 Theming
+Paragraph 437: Light mode is the default and only mode required for MVP; the token architecture (CSS variables) supports a dark-mode palette swap in Phase 2 without component-level rework. Theme transitions, when introduced, cross-fade background/text colors over 200ms.
+Paragraph 438: 14.6 Visual Effects
+Paragraph 439: Shadow elevation scale: sm 0 1px 3px, md 0 2px 6px, lg 0 8px 24px (all rgba(46,34,51, 0.06–0.16)).
+Paragraph 440: Glassmorphism reserved for the AI-interaction overlay only (backdrop-filter: blur(12px) over a semi-transparent surface) — not used app-wide to preserve readability and performance.
+Paragraph 441: All animations target 60fps using only transform/opacity; layout-affecting properties are never animated.
+Paragraph 442: 14.7 Responsive Images
+Paragraph 443: Native lazy loading (loading="lazy") for all below-the-fold images.
+Paragraph 444: <picture> element with WebP + JPEG fallback for all raster assets.
+Paragraph 445: 14.8 Containers
+Paragraph 446: Max content width 1200px on Large Desktop with centered auto margins; 24px side padding on Desktop/Tablet, 16px on Mobile; mobile-first CSS authored with min-width media queries layered upward.
+Paragraph 447: 
+Paragraph 448: Chapter 15 — Testing Strategy
+Paragraph 449: 15.1 CI/CD Test Gates
+Paragraph 450: Pull requests require passing lint, unit, and integration test suites before merge is allowed; the main branch additionally runs the full accessibility and Lighthouse checks nightly, with regressions blocking the next deploy.
+Paragraph 451: 15.2 Test Data
+Paragraph 452: A seed script populates a representative dataset for each of the 13 personas (Chapter 2) in the staging environment, including multi-cycle history for prediction/AI testing, so QA and design review never work against an empty database.
+Paragraph 453: 
+Paragraph 454: Chapter 16 — Deployment & DevOps
+Paragraph 455: 16.1 Hosting
+Paragraph 456: 16.2 CI/CD Pipeline (GitHub Actions)
+Paragraph 457: Trigger: push to any branch runs lint + unit tests; PR to main additionally runs integration tests.
+Paragraph 458: Merge to main: build → run full test suite → deploy to staging automatically → manual approval gate → deploy to production.
+Paragraph 459: Rollback: previous production build image retained; one-click rollback via the hosting platform's deployment history if error rate spikes post-deploy.
+Paragraph 460: 16.3 Environment Variables
+Paragraph 461: 16.4 Monitoring & Logging
+Paragraph 462: Error tracking via Sentry (frontend + backend) with alerting on new error types and error-rate spikes.
+Paragraph 463: Structured application logs (JSON) shipped to the hosting platform's log aggregator; auditLogs collection (Chapter 13.3) is separate from operational logs.
+Paragraph 464: Uptime monitoring on the public API health-check endpoint, alerting on-call within 5 minutes of an outage.
+Paragraph 465: 16.5 Backup & Scaling
+Paragraph 466: Database: automated daily snapshot + continuous oplog backup on Atlas, 30-day retention.
+Paragraph 467: Scale trigger: API tier auto-scales on CPU > 70% sustained for 5 minutes; database tier upgrade evaluated at 70% of provisioned IOPS/storage.
+Paragraph 468: 16.6 Maintenance Windows
+Paragraph 469: Planned maintenance is scheduled during India's lowest-traffic window (approx. 2–4 AM IST), announced in-app 48 hours in advance for any change expected to cause downtime beyond a rolling zero-downtime deploy.

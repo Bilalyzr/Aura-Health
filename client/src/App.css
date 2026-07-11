@@ -1,0 +1,533 @@
+/* App-Specific Component Styles - Scoped with 'aura-' Prefixes */
+
+/* Navigation Header */
+.aura-header {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 64px;
+}
+
+.aura-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+}
+
+.aura-logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-decoration: none;
+}
+
+.aura-logo-icon {
+  background: var(--grad-ai);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.aura-nav {
+  display: flex;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.aura-nav-link {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+.aura-nav-link:hover, .aura-nav-link.active {
+  color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+/* Landing Page */
+.aura-landing-hero {
+  padding: var(--space-2xl) 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.aura-landing-headline {
+  font-size: 48px;
+  color: var(--color-primary-dark);
+  margin-bottom: var(--space-md);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.aura-landing-subhead {
+  font-size: 18px;
+  color: var(--color-text-muted);
+  max-width: 600px;
+  margin: 0 auto var(--space-xl) auto;
+}
+
+.aura-landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-lg);
+  margin: var(--space-xl) 0;
+}
+
+.aura-feature-card {
+  text-align: left;
+}
+.aura-feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--color-accent-light);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-md);
+}
+
+.aura-testimonial-section {
+  background: var(--color-surface);
+  padding: var(--space-2xl) var(--space-md);
+  border-radius: var(--radius-xl);
+  margin: var(--space-2xl) 0;
+  text-align: center;
+}
+
+.aura-testimonial-carousel {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.aura-testimonial-text {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-style: italic;
+  color: var(--color-primary-dark);
+  margin-bottom: var(--space-md);
+}
+
+/* Auth Cards */
+.aura-auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 120px);
+  padding: var(--space-lg) 0;
+}
+
+.aura-auth-card {
+  max-width: 420px;
+  width: 100%;
+}
+
+.aura-auth-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--color-primary-dark);
+  text-align: center;
+  margin-bottom: var(--space-sm);
+}
+
+/* Onboarding Flow */
+.aura-onboarding-card {
+  max-width: 600px;
+  margin: var(--space-xl) auto;
+}
+
+.aura-onboarding-progress {
+  height: 6px;
+  background: #EFE3ED;
+  border-radius: 3px;
+  margin-bottom: var(--space-xl);
+  overflow: hidden;
+}
+
+.aura-onboarding-bar {
+  height: 100%;
+  background: var(--grad-hero);
+  transition: width 300ms ease;
+}
+
+.aura-condition-selector {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0;
+}
+
+.aura-condition-option {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+.aura-condition-option:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+.aura-condition-option.selected {
+  border-color: var(--color-primary);
+  background: var(--color-accent-light);
+}
+
+/* Dashboard Layout */
+.aura-dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+@media (max-width: 1024px) {
+  .aura-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aura-today-widget-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+@media (max-width: 640px) {
+  .aura-today-widget-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aura-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.aura-cycle-badge-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.aura-cycle-ring {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--grad-hero);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.aura-cycle-ring-day {
+  font-size: 20px;
+}
+.aura-cycle-ring-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+/* Daily Routine Checklist */
+.aura-routine-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.aura-routine-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  transition: all 150ms ease;
+}
+.aura-routine-item.completed {
+  opacity: 0.65;
+  background: var(--color-white);
+}
+
+.aura-routine-checkbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-white);
+  transition: all 150ms ease;
+  margin-top: 2px;
+}
+.aura-routine-checkbox.checked {
+  background: var(--color-primary);
+}
+
+/* AI Recommendation Orb styling */
+.aura-ai-card {
+  background: var(--grad-ai);
+  color: var(--color-white);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.aura-ai-card-bg {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  filter: blur(10px);
+}
+
+/* Logging Quick Widget */
+.aura-quick-log-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.aura-quick-log-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-md) var(--space-xs);
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-size: 13px;
+  font-weight: 500;
+  gap: var(--space-xs);
+}
+.aura-quick-log-btn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+/* Cycle calendar and tracking */
+.aura-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-xs);
+  margin: var(--space-md) 0;
+}
+
+.aura-calendar-day-header {
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+  padding: var(--space-xs) 0;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.aura-calendar-day {
+  height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: all 150ms ease;
+}
+.aura-calendar-day:hover {
+  background: var(--color-surface);
+}
+.aura-calendar-day.today {
+  border: 2px solid var(--color-primary);
+  font-weight: bold;
+}
+.aura-calendar-day.menstrual { background-color: #FBEFF2; color: #C4433D; }
+.aura-calendar-day.follicular { background-color: #E8F5EE; color: #4C9A6B; }
+.aura-calendar-day.ovulatory { background-color: #FFF9E6; color: #C77B2E; }
+.aura-calendar-day.luteal { background-color: #F3EFFB; color: #8B5A8C; }
+.aura-calendar-day.predicted { border: 1px dashed var(--color-accent); }
+
+.aura-flow-dot {
+  width: 6px;
+  height: 6px;
+  background: #C4433D;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 4px;
+}
+
+/* Forum Boards */
+.aura-forum-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.aura-forum-tabs {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.aura-forum-tab {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text-muted);
+  transition: all 150ms ease;
+}
+.aura-forum-tab.active {
+  background: var(--color-primary-dark);
+  color: var(--color-white);
+  border-color: var(--color-primary-dark);
+}
+
+.aura-forum-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.aura-thread-card {
+  border-left: 4px solid var(--color-primary);
+}
+
+.aura-thread-meta {
+  display: flex;
+  gap: var(--space-md);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
+}
+
+/* PDF Reports and Analytics graphics */
+.aura-analytics-chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+@media (max-width: 768px) {
+  .aura-analytics-chart-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aura-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  height: 200px;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.aura-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.aura-bar {
+  width: 100%;
+  background: var(--grad-hero);
+  border-radius: 4px 4px 0 0;
+  transition: height 600ms ease-out;
+}
+
+.aura-bar-lbl {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* System Alerts */
+.aura-alert {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  margin-bottom: var(--space-lg);
+}
+
+.aura-alert-warning {
+  background: #FDF1E6;
+  border-left: 4px solid var(--color-warning);
+  color: #8C531B;
+}
+
+/* User Management Admin */
+.aura-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  margin-top: var(--space-md);
+}
+
+.aura-admin-table th, .aura-admin-table td {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.aura-admin-table th {
+  font-weight: 600;
+  background: var(--color-surface);
+}
+
