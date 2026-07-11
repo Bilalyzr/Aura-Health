@@ -351,12 +351,12 @@ button, input, select, textarea {
   .aura-modal-content {
     max-width: 100%;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    position: absolute;
-    bottom: 0;
-  }
+  border-left: 4px solid var(--color-primary);
 }
 
-/* Custom Premium Glassmorphic Loading Animation */
+/* ──────────────────────────────────────────────
+   Loader
+────────────────────────────────────────────── */
 .aura-premium-loader {
   display: flex;
   flex-direction: column;
@@ -364,7 +364,7 @@ button, input, select, textarea {
   justify-content: center;
   padding: 48px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(12px);
   border-radius: var(--radius-xl);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -383,7 +383,6 @@ button, input, select, textarea {
   justify-content: center;
   margin-bottom: 20px;
 }
-
 .aura-loader-ring::after {
   content: '';
   position: absolute;
@@ -393,52 +392,55 @@ button, input, select, textarea {
   border-radius: 50%;
 }
 
-@keyframes aura-loader-rotate {
-  0% { transform: rotate(0deg); filter: hue-rotate(0deg); }
-  100% { transform: rotate(360deg); filter: hue-rotate(360deg); }
-}
-
-/* Skeleton loader effect */
+/* ──────────────────────────────────────────────
+   Skeleton
+────────────────────────────────────────────── */
 .aura-skeleton {
-  background: linear-gradient(90deg, #FAF5F9 25%, #EFE3ED 50%, #FAF5F9 75%);
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-border) 50%, var(--color-surface) 75%);
   background-size: 200% 100%;
-  animation: aura-skeleton-shine 1.6s infinite;
+  animation: shimmer 1.6s infinite;
   border-radius: 4px;
 }
 
-@keyframes aura-skeleton-shine {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* Viewport Scroll Reveal animation */
+/* ──────────────────────────────────────────────
+   Scroll Reveal
+────────────────────────────────────────────── */
 .aura-scroll-reveal {
   opacity: 0;
   transform: translateY(30px);
-  transition: opacity 1000ms cubic-bezier(0.16, 1, 0.3, 1), transform 1000ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 1000ms cubic-bezier(0.16,1,0.3,1), transform 1000ms cubic-bezier(0.16,1,0.3,1);
   will-change: transform, opacity;
 }
-
 .aura-scroll-reveal.aura-revealed {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Print utility class to hide elements during normal screen view */
-.aura-print-only {
-  display: none;
+/* ──────────────────────────────────────────────
+   Responsive
+────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .aura-modal-content {
+    max-width: 100%;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    position: absolute;
+    bottom: 0;
+  }
 }
 
-/* Clinician Print Document Styling (PDF Export Layout) */
+/* ──────────────────────────────────────────────
+   Print / Clinician Report Export
+────────────────────────────────────────────── */
+.aura-print-only { display: none; }
+
 @media print {
   body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #293052 !important;
     font-size: 11pt !important;
     font-family: 'Outfit', 'Inter', sans-serif !important;
   }
-  
-  /* Hide all interactive browser elements and screen content */
+
   .aura-no-print,
   .aura-header,
   .aura-nav,
@@ -448,16 +450,10 @@ button, input, select, textarea {
   .aura-btn,
   select,
   input,
-  .aura-toast {
-    display: none !important;
-  }
+  .aura-toast { display: none !important; }
 
-  /* Display print section exclusively */
-  .aura-print-only {
-    display: block !important;
-  }
+  .aura-print-only { display: block !important; }
 
-  /* Display print section exclusively */
   #print-section {
     display: block !important;
     position: absolute;
@@ -471,7 +467,7 @@ button, input, select, textarea {
   }
 
   .aura-print-letterhead {
-    border-bottom: 3px solid #5C3A5D;
+    border-bottom: 3px solid #7987C3;
     padding-bottom: 16px;
     margin-bottom: 24px;
     display: flex;

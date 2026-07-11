@@ -1,9 +1,12 @@
 /* App-Specific Component Styles - Scoped with 'aura-' Prefixes */
 
-/* Navigation Header */
+/* ──────────────────────────────────────────────
+   Navigation Header
+────────────────────────────────────────────── */
 .aura-header {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(245, 245, 240, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
@@ -21,25 +24,27 @@
 .aura-logo {
   font-family: var(--font-display);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-primary-dark);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   text-decoration: none;
+  letter-spacing: -0.02em;
 }
 
 .aura-logo-icon {
   background: var(--grad-ai);
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-white);
+  color: #FFFFFF;
   font-weight: bold;
   font-size: 16px;
+  box-shadow: 0 2px 8px rgba(121, 135, 195, 0.35);
 }
 
 .aura-nav {
@@ -63,10 +68,12 @@
 }
 .aura-nav-link:hover, .aura-nav-link.active {
   color: var(--color-primary);
-  background: var(--color-surface);
+  background: var(--color-primary-light);
 }
 
-/* Landing Page */
+/* ──────────────────────────────────────────────
+   Landing Page
+────────────────────────────────────────────── */
 .aura-landing-hero {
   padding: var(--space-2xl) 0;
   text-align: center;
@@ -104,7 +111,7 @@
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: var(--color-accent-light);
+  background: var(--color-primary-light);
   color: var(--color-primary);
   display: flex;
   align-items: center;
@@ -133,7 +140,9 @@
   margin-bottom: var(--space-md);
 }
 
-/* Auth Cards */
+/* ──────────────────────────────────────────────
+   Auth Cards
+────────────────────────────────────────────── */
 .aura-auth-container {
   display: flex;
   justify-content: center;
@@ -155,7 +164,9 @@
   margin-bottom: var(--space-sm);
 }
 
-/* Onboarding Flow */
+/* ──────────────────────────────────────────────
+   Onboarding Flow
+────────────────────────────────────────────── */
 .aura-onboarding-card {
   max-width: 600px;
   margin: var(--space-xl) auto;
@@ -163,7 +174,7 @@
 
 .aura-onboarding-progress {
   height: 6px;
-  background: #EFE3ED;
+  background: var(--color-border);
   border-radius: 3px;
   margin-bottom: var(--space-xl);
   overflow: hidden;
@@ -193,15 +204,17 @@
   gap: var(--space-md);
 }
 .aura-condition-option:hover {
-  border-color: var(--color-accent);
-  background: var(--color-surface);
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
 }
 .aura-condition-option.selected {
   border-color: var(--color-primary);
-  background: var(--color-accent-light);
+  background: var(--color-primary-light);
 }
 
-/* Dashboard Layout */
+/* ──────────────────────────────────────────────
+   Dashboard Layout
+────────────────────────────────────────────── */
 .aura-dashboard-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -210,9 +223,7 @@
 }
 
 @media (max-width: 1024px) {
-  .aura-dashboard-grid {
-    grid-template-columns: 1fr;
-  }
+  .aura-dashboard-grid { grid-template-columns: 1fr; }
 }
 
 .aura-today-widget-grid {
@@ -223,9 +234,7 @@
 }
 
 @media (max-width: 640px) {
-  .aura-today-widget-grid {
-    grid-template-columns: 1fr;
-  }
+  .aura-today-widget-grid { grid-template-columns: 1fr; }
 }
 
 .aura-dashboard-header {
@@ -241,6 +250,7 @@
   gap: var(--space-md);
 }
 
+/* Cycle Ring — lavender-to-blush gradient */
 .aura-cycle-ring {
   width: 72px;
   height: 72px;
@@ -250,20 +260,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--color-white);
+  color: #FFFFFF;
   font-weight: 700;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 14px rgba(121, 135, 195, 0.35);
 }
 
-.aura-cycle-ring-day {
-  font-size: 20px;
-}
-.aura-cycle-ring-lbl {
-  font-size: 10px;
-  text-transform: uppercase;
-}
+.aura-cycle-ring-day { font-size: 20px; }
+.aura-cycle-ring-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
 
-/* Daily Routine Checklist */
+/* ──────────────────────────────────────────────
+   Daily Routine Checklist
+────────────────────────────────────────────── */
 .aura-routine-list {
   display: flex;
   flex-direction: column;
@@ -282,7 +289,7 @@
   transition: all 150ms ease;
 }
 .aura-routine-item.completed {
-  opacity: 0.65;
+  opacity: 0.60;
   background: var(--color-white);
 }
 
@@ -290,23 +297,26 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--color-lavender);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--color-white);
+  color: #FFFFFF;
   transition: all 150ms ease;
   margin-top: 2px;
+  flex-shrink: 0;
 }
 .aura-routine-checkbox.checked {
-  background: var(--color-primary);
+  background: var(--color-lavender);
 }
 
-/* AI Recommendation Orb styling */
+/* ──────────────────────────────────────────────
+   AI Recommendation Card
+────────────────────────────────────────────── */
 .aura-ai-card {
   background: var(--grad-ai);
-  color: var(--color-white);
+  color: #FFFFFF;
   border: none;
   position: relative;
   overflow: hidden;
@@ -318,12 +328,14 @@
   right: -20px;
   width: 120px;
   height: 120px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 50%;
   filter: blur(10px);
 }
 
-/* Logging Quick Widget */
+/* ──────────────────────────────────────────────
+   Quick Log Widget
+────────────────────────────────────────────── */
 .aura-quick-log-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -346,11 +358,13 @@
   gap: var(--space-xs);
 }
 .aura-quick-log-btn:hover {
-  border-color: var(--color-accent);
-  background: var(--color-surface);
+  border-color: var(--color-lavender);
+  background: var(--color-primary-light);
 }
 
-/* Cycle calendar and tracking */
+/* ──────────────────────────────────────────────
+   Cycle Calendar
+────────────────────────────────────────────── */
 .aura-calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -375,33 +389,37 @@
   align-items: center;
   justify-content: center;
   font-weight: 500;
+  font-size: 13px;
   cursor: pointer;
   position: relative;
   transition: all 150ms ease;
 }
-.aura-calendar-day:hover {
-  background: var(--color-surface);
-}
+.aura-calendar-day:hover { background: var(--color-primary-light); }
 .aura-calendar-day.today {
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--color-lavender);
   font-weight: bold;
+  color: var(--color-primary-dark);
 }
-.aura-calendar-day.menstrual { background-color: #FBEFF2; color: #C4433D; }
-.aura-calendar-day.follicular { background-color: #E8F5EE; color: #4C9A6B; }
-.aura-calendar-day.ovulatory { background-color: #FFF9E6; color: #C77B2E; }
-.aura-calendar-day.luteal { background-color: #F3EFFB; color: #8B5A8C; }
-.aura-calendar-day.predicted { border: 1px dashed var(--color-accent); }
+
+/* Phase colours aligned with new palette */
+.aura-calendar-day.menstrual  { background-color: #FCEEF1; color: #C06A7D; }   /* blush-light / blush-dark */
+.aura-calendar-day.follicular { background-color: #EBF5EB; color: #2E6E2E; }   /* sage-light / sage-dark */
+.aura-calendar-day.ovulatory  { background-color: #FFF5E6; color: #8F5B28; }   /* warm amber tint */
+.aura-calendar-day.luteal     { background-color: #EEF0F9; color: #4F5E9E; }   /* lavender-light / lavender-dark */
+.aura-calendar-day.predicted  { border: 1.5px dashed var(--color-blush); }
 
 .aura-flow-dot {
   width: 6px;
   height: 6px;
-  background: #C4433D;
+  background: var(--color-blush);
   border-radius: 50%;
   position: absolute;
   bottom: 4px;
 }
 
-/* Forum Boards */
+/* ──────────────────────────────────────────────
+   Community Forum
+────────────────────────────────────────────── */
 .aura-forum-header {
   display: flex;
   justify-content: space-between;
@@ -411,10 +429,7 @@
   gap: var(--space-md);
 }
 
-.aura-forum-tabs {
-  display: flex;
-  gap: var(--space-sm);
-}
+.aura-forum-tabs { display: flex; gap: var(--space-sm); }
 
 .aura-forum-tab {
   padding: var(--space-xs) var(--space-md);
@@ -422,15 +437,15 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   background: var(--color-white);
   color: var(--color-text-muted);
   transition: all 150ms ease;
 }
 .aura-forum-tab.active {
-  background: var(--color-primary-dark);
-  color: var(--color-white);
-  border-color: var(--color-primary-dark);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  border-color: var(--color-primary);
 }
 
 .aura-forum-thread-list {
@@ -440,7 +455,7 @@
 }
 
 .aura-thread-card {
-  border-left: 4px solid var(--color-primary);
+  border-left: 4px solid var(--color-lavender);
 }
 
 .aura-thread-meta {
@@ -451,7 +466,9 @@
   margin-top: var(--space-sm);
 }
 
-/* PDF Reports and Analytics graphics */
+/* ──────────────────────────────────────────────
+   Analytics / Bar Charts
+────────────────────────────────────────────── */
 .aura-analytics-chart-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -460,9 +477,7 @@
 }
 
 @media (max-width: 768px) {
-  .aura-analytics-chart-row {
-    grid-template-columns: 1fr;
-  }
+  .aura-analytics-chart-row { grid-template-columns: 1fr; }
 }
 
 .aura-bar-chart {
@@ -497,23 +512,28 @@
   white-space: nowrap;
 }
 
-/* System Alerts */
+/* ──────────────────────────────────────────────
+   System Alerts (App-level overrides)
+────────────────────────────────────────────── */
 .aura-alert {
-  padding: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-md);
   display: flex;
   gap: var(--space-md);
   align-items: flex-start;
   margin-bottom: var(--space-lg);
+  border-left: 4px solid transparent;
 }
 
 .aura-alert-warning {
-  background: #FDF1E6;
-  border-left: 4px solid var(--color-warning);
-  color: #8C531B;
+  background: var(--color-warning-light);
+  border-color: var(--color-terracotta);
+  color: #7A3D22;
 }
 
-/* User Management Admin */
+/* ──────────────────────────────────────────────
+   Admin User Table
+────────────────────────────────────────────── */
 .aura-admin-table {
   width: 100%;
   border-collapse: collapse;
@@ -528,6 +548,6 @@
 
 .aura-admin-table th {
   font-weight: 600;
-  background: var(--color-surface);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
 }
-
