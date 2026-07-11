@@ -727,8 +727,11 @@ export default function App() {
   // 1. Landing Page
   const LandingPage = () => (
     <div className="aura-landing-hero anim-slide-in">
-      <div className="aura-hero-orb-1"></div>
-      <div className="aura-hero-orb-2"></div>
+      <div className="aura-liquid-layer">
+        <div className="aura-hero-orb-1"></div>
+        <div className="aura-hero-orb-2"></div>
+        <div className="aura-hero-orb-3"></div>
+      </div>
       
       <div className="aura-container" style={{ position: 'relative', zIndex: 2 }}>
         <h1 className="aura-landing-headline">Your Personalized Companion for Hormonal and Cycle Health</h1>

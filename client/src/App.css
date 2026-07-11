@@ -79,34 +79,112 @@
   text-align: center;
   position: relative;
   overflow: hidden;
-  background: var(--color-bg-primary);
+  /* Liquid Ether backdrop gradient */
+  background: linear-gradient(135deg, 
+    var(--color-bg-primary) 0%, 
+    var(--color-primary-light) 30%, 
+    #FCEEF1 70%, 
+    var(--color-bg-primary) 100%
+  );
+  background-size: 300% 300%;
+  animation: aura-liquid-ether 22s ease-in-out infinite alternate;
 }
 
-.aura-hero-orb-1, .aura-hero-orb-2 {
+/* Liquid fluid elements */
+.aura-liquid-layer {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
+  inset: 0;
   z-index: 1;
-  opacity: 0.55;
+  opacity: 0.85;
   pointer-events: none;
 }
 
+.aura-hero-orb-1, .aura-hero-orb-2, .aura-hero-orb-3 {
+  position: absolute;
+  border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; /* Organic fluid shape */
+  filter: blur(80px);
+  opacity: 0.45;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
 .aura-hero-orb-1 {
-  width: 380px;
-  height: 380px;
-  background: var(--color-lavender);
-  top: -120px;
-  left: -80px;
-  animation: aura-flow-slow 16s ease-in-out infinite alternate;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, var(--color-lavender) 0%, rgba(121,135,195,0) 70%);
+  top: -10%;
+  left: -10%;
+  animation: aura-fluid-drift-1 25s ease-in-out infinite alternate;
 }
 
 .aura-hero-orb-2 {
-  width: 420px;
-  height: 420px;
-  background: var(--color-blush);
-  bottom: -150px;
-  right: -80px;
-  animation: aura-flow-medium 20s ease-in-out infinite alternate;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, var(--color-blush) 0%, rgba(222,138,155,0) 70%);
+  bottom: -15%;
+  right: -10%;
+  animation: aura-fluid-drift-2 28s ease-in-out infinite alternate;
+}
+
+.aura-hero-orb-3 {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, var(--color-success) 0%, rgba(143,188,143,0) 70%);
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: aura-fluid-drift-3 30s ease-in-out infinite alternate;
+}
+
+@keyframes aura-liquid-ether {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes aura-fluid-drift-1 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+  }
+  50% {
+    transform: translate(60px, 40px) scale(1.15) rotate(120deg);
+    border-radius: 60% 40% 50% 50% / 50% 60% 40% 50%;
+  }
+  100% {
+    transform: translate(-20px, 80px) scale(0.9) rotate(240deg);
+    border-radius: 50% 50% 60% 40% / 40% 50% 50% 60%;
+  }
+}
+
+@keyframes aura-fluid-drift-2 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    border-radius: 50% 50% 30% 70% / 50% 40% 60% 50%;
+  }
+  50% {
+    transform: translate(-80px, -50px) scale(1.2) rotate(-90deg);
+    border-radius: 40% 60% 50% 50% / 60% 50% 40% 50%;
+  }
+  100% {
+    transform: translate(30px, -90px) scale(0.95) rotate(-180deg);
+    border-radius: 60% 40% 70% 30% / 50% 60% 50% 40%;
+  }
+}
+
+@keyframes aura-fluid-drift-3 {
+  0% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    border-radius: 40% 60% 30% 70% / 60% 40% 50% 50%;
+  }
+  50% {
+    transform: translate(-40%, -60%) scale(1.18) rotate(180deg);
+    border-radius: 50% 50% 60% 40% / 40% 60% 50% 50%;
+  }
+  100% {
+    transform: translate(-60%, -40%) scale(0.9) rotate(360deg);
+    border-radius: 60% 40% 50% 50% / 50% 40% 60% 50%;
+  }
 }
 
 @keyframes aura-flow-slow {
