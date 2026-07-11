@@ -79,6 +79,44 @@
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: var(--color-bg-primary);
+}
+
+.aura-hero-orb-1, .aura-hero-orb-2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 1;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.aura-hero-orb-1 {
+  width: 380px;
+  height: 380px;
+  background: var(--color-lavender);
+  top: -120px;
+  left: -80px;
+  animation: aura-flow-slow 16s ease-in-out infinite alternate;
+}
+
+.aura-hero-orb-2 {
+  width: 420px;
+  height: 420px;
+  background: var(--color-blush);
+  bottom: -150px;
+  right: -80px;
+  animation: aura-flow-medium 20s ease-in-out infinite alternate;
+}
+
+@keyframes aura-flow-slow {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  100% { transform: translate(70px, 50px) scale(1.2) rotate(45deg); }
+}
+
+@keyframes aura-flow-medium {
+  0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  100% { transform: translate(-90px, -60px) scale(1.25) rotate(-45deg); }
 }
 
 .aura-landing-headline {

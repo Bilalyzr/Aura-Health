@@ -727,14 +727,18 @@ export default function App() {
   // 1. Landing Page
   const LandingPage = () => (
     <div className="aura-landing-hero anim-slide-in">
-      <h1 className="aura-landing-headline">Your Personalized Companion for Hormonal and Cycle Health</h1>
-      <p className="aura-landing-subhead">Aura Health matches symptom logs and cycle phases with AI personalization to help you understand your body and manage chronic conditions like PCOS, endometriosis, and PMDD.</p>
-      <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '48px' }}>
-        <button onClick={() => setCurrentView('register')} className="aura-btn aura-btn-primary aura-btn-lg">Create Account <ChevronRight size={18}/></button>
-        <button onClick={() => setCurrentView('login')} className="aura-btn aura-btn-secondary aura-btn-lg">Login</button>
-      </div>
+      <div className="aura-hero-orb-1"></div>
+      <div className="aura-hero-orb-2"></div>
+      
+      <div className="aura-container" style={{ position: 'relative', zIndex: 2 }}>
+        <h1 className="aura-landing-headline">Your Personalized Companion for Hormonal and Cycle Health</h1>
+        <p className="aura-landing-subhead">Aura Health matches symptom logs and cycle phases with AI personalization to help you understand your body and manage chronic conditions like PCOS, endometriosis, and PMDD.</p>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '48px' }}>
+          <button onClick={() => setCurrentView('register')} className="aura-btn aura-btn-primary aura-btn-lg">Create Account <ChevronRight size={18}/></button>
+          <button onClick={() => setCurrentView('login')} className="aura-btn aura-btn-secondary aura-btn-lg">Login</button>
+        </div>
 
-      <div className="aura-landing-grid">
+        <div className="aura-landing-grid">
         <div className="aura-card aura-feature-card">
           <div className="aura-feature-icon"><Activity size={24}/></div>
           <h3>AI Daily Routine</h3>
@@ -757,6 +761,7 @@ export default function App() {
           <p className="aura-testimonial-text">"Tracking on Aura feels entirely different. Instead of just numbers, it gives me practical lifestyle items for my PCOS symptoms everyday."</p>
           <strong style={{ color: 'var(--color-primary)' }}>— Ananya, Bengaluru</strong>
         </div>
+      </div>
       </div>
     </div>
   );
