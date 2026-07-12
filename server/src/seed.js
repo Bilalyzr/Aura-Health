@@ -48,6 +48,7 @@ const seed = async () => {
     // Passwords
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash('Password123!', salt);
+    const hariniHash = await bcrypt.hash('Bilal@004', salt);
 
     // 1. Create Users (Personas)
     const patientPcos = await User.create({
@@ -55,6 +56,16 @@ const seed = async () => {
       passwordHash,
       fullName: 'Ananya Sharma',
       dateOfBirth: new Date('2002-05-15'),
+      userType: 'patient',
+      conditionTags: ['pcos'],
+      preferences: { theme: 'light', notifications: true }
+    });
+
+    const patientHarini = await User.create({
+      email: 'harini@aura.com',
+      passwordHash: hariniHash,
+      fullName: 'Harini',
+      dateOfBirth: new Date('2000-01-01'),
       userType: 'patient',
       conditionTags: ['pcos'],
       preferences: { theme: 'light', notifications: true }

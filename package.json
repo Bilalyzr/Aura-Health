@@ -3,9 +3,14 @@
   "version": "1.0.0",
   "description": "Full-stack Aura Health Women's Health Platform",
   "scripts": {
+    "dev": "concurrently \"npm run server-dev\" \"npm run client\"",
+    "build": "npm --prefix client run build",
     "server": "npm --prefix server start",
     "server-dev": "npm --prefix server run dev",
     "client": "npm --prefix client run dev",
     "seed": "npm --prefix server run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

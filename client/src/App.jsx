@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Heart, Activity, Calendar, Users, BarChart3, Settings, 
-  LogOut, Shield, ChevronRight, Check, AlertTriangle, Plus, 
-  ThumbsUp, Send, Trash2, PlusCircle, CheckCircle, RefreshCw, Info, Key
+  LogOut, Shield, ChevronRight, ChevronLeft, ChevronDown, Check, AlertTriangle, Plus, 
+  ThumbsUp, Send, Trash2, PlusCircle, CheckCircle, RefreshCw, Info, Key,
+  Sparkles, Droplet, MessageSquare, Flame
 } from 'lucide-react';
 import './App.css';
 
@@ -11,14 +12,22 @@ import Timeline from './components/Timeline';
 import Reports from './components/Reports';
 import MenstrualLeave from './components/MenstrualLeave';
 import PartnerRoom from './components/PartnerRoom';
+import PatientDashboard from './components/PatientDashboard';
 
 const API_BASE = 'http://localhost:5001/api';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('aura_token') || '');
   const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('landing');
+  const [currentView, setCurrentView] = useState(localStorage.getItem('aura_token') ? 'loading' : 'landing');
   const [toast, setToast] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Keep the branded loading animation on screen for a minimum time on boot,
+  // so a fast token check doesn't make it flash by invisibly.
+  const bootTimeRef = useRef(Date.now());
+  const initialLoadRef = useRef(!!localStorage.getItem('aura_token'));
+  const MIN_LOADING_MS = 1200;
   
   // Patient State
   const [dashboardData, setDashboardData] = useState(null);
@@ -26,6 +35,7 @@ export default function App() {
   const [prediction, setPrediction] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [pendingOtps, setPendingOtps] = useState([]);
+  const [weeklyData, setWeeklyData] = useState([]);
 
   // Forum State
   const [threads, setThreads] = useState([]);
@@ -168,6 +178,12 @@ export default function App() {
     setTimeout(() => setToast(null), duration);
   };
 
+  const toggleSidebar = () => {
+    const nextVal = !sidebarCollapsed;
+    setSidebarCollapsed(nextVal);
+    localStorage.setItem('sidebar_collapsed', nextVal ? 'true' : 'false');
+  };
+
   // ----------------------------------------------------
   // REFRESH / AUTH PERSISTENCE
   // ----------------------------------------------------
@@ -183,6 +199,29 @@ export default function App() {
       }
     }
   }, [token]);
+
+  // Poll for partner nudges (live support popups)
+  useEffect(() => {
+    if (!token || !user || user.userType !== 'patient') return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/partner/nudges`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.nudges && data.nudges.length > 0) {
+          data.nudges.forEach(nudge => {
+            showToast(nudge.message);
+          });
+        }
+      } catch (err) {
+        console.error("Nudge polling error:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [token, user]);
 
   // Viewport Scroll Intersection Observer Reveal Effect
   useEffect(() => {
@@ -216,28 +255,40 @@ export default function App() {
       const data = await res.json();
       if (data.success) {
         setUser(data.user);
-        
+
         // Redirect based on role on refresh
-        if (data.user.userType === 'patient') {
-          if (!data.user.conditionTags || data.user.conditionTags.length === 0) {
-            // New patient with no survey yet
-            setCurrentView('onboarding');
+        const applyRedirect = () => {
+          if (data.user.userType === 'patient') {
+            if (!data.user.conditionTags || data.user.conditionTags.length === 0) {
+              // New patient with no survey yet
+              setCurrentView('onboarding');
+            } else {
+              setCurrentView('dashboard');
+              loadPatientDashboard();
+              loadCycles();
+              loadTimeline();
+              loadLeaveLogs();
+              loadPartnerMessages();
+            }
+          } else if (data.user.userType === 'admin') {
+            setCurrentView('admin');
+            loadAdminConsole();
           } else {
-            setCurrentView('dashboard');
-            loadPatientDashboard();
-            loadCycles();
-            loadTimeline();
-            loadLeaveLogs();
+            // Doctor / Partner / Guardian
+            setCurrentView('sharing');
+            loadSharedAccess(data.user);
             loadPartnerMessages();
           }
-        } else if (data.user.userType === 'admin') {
-          setCurrentView('admin');
-          loadAdminConsole();
+        };
+
+        // On the very first boot load, hold the loading animation for a minimum
+        // duration so it's actually seen; afterwards redirect immediately.
+        if (initialLoadRef.current) {
+          initialLoadRef.current = false;
+          const remaining = Math.max(0, MIN_LOADING_MS - (Date.now() - bootTimeRef.current));
+          setTimeout(applyRedirect, remaining);
         } else {
-          // Doctor / Partner / Guardian
-          setCurrentView('sharing');
-          loadSharedAccess(data.user);
-          loadPartnerMessages();
+          applyRedirect();
         }
       } else {
         // Token invalid
@@ -259,6 +310,21 @@ export default function App() {
   // ----------------------------------------------------
   // PATIENT DATA LOADERS
   // ----------------------------------------------------
+  const loadWeeklyData = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/timeline/weekly`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWeeklyData(data.weekly);
+      }
+    } catch (err) {
+      console.error("Weekly data load error:", err);
+    }
+  };
+
   const loadPatientDashboard = async () => {
     try {
       const res = await fetch(`${API_BASE}/dashboard/summary`, {
@@ -268,6 +334,7 @@ export default function App() {
       if (data.success) {
         setDashboardData(data);
         loadPendingOtps();
+        loadWeeklyData();
       }
     } catch (err) {
       console.error(err);
@@ -665,58 +732,40 @@ export default function App() {
   const renderNav = () => {
     if (!user) return null;
 
-    const userProfileWidget = (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '12px' }}>
-        {user.profileImage ? (
-          <img src={user.profileImage} alt={user.fullName} style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--color-primary)' }} />
-        ) : (
-          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--color-primary-hover)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
-            {user.fullName.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-text-primary)' }}>{user.fullName}</span>
-      </div>
-    );
-
     if (user.userType === 'patient') {
       return (
-        <nav className="aura-nav">
-          <a onClick={() => { setCurrentView('dashboard'); loadPatientDashboard(); }} className={`aura-nav-link ${currentView === 'dashboard' ? 'active' : ''}`}><Heart size={15}/> Dashboard</a>
-          <a onClick={() => { setCurrentView('luna'); }} className={`aura-nav-link ${currentView === 'luna' ? 'active' : ''}`}><Activity size={15}/> Luna AI Chat</a>
-          <a onClick={() => { setCurrentView('timeline'); loadTimeline(); }} className={`aura-nav-link ${currentView === 'timeline' ? 'active' : ''}`}><RefreshCw size={15}/> Timeline</a>
-          <a onClick={() => { setCurrentView('cycles'); loadCycles(); }} className={`aura-nav-link ${currentView === 'cycles' ? 'active' : ''}`}><Calendar size={15}/> Cycle Tracker</a>
-          <a onClick={() => { setCurrentView('reports'); loadAnalytics(); }} className={`aura-nav-link ${currentView === 'reports' ? 'active' : ''}`}><BarChart3 size={15}/> Reports</a>
-          <a onClick={() => { setCurrentView('leave'); loadLeaveLogs(); }} className={`aura-nav-link ${currentView === 'leave' ? 'active' : ''}`}><Shield size={15}/> Leave</a>
-          <a onClick={() => { setCurrentView('partner_room'); loadPartnerMessages(); }} className={`aura-nav-link ${currentView === 'partner_room' ? 'active' : ''}`}><Users size={15}/> Partner Room</a>
-          <a onClick={() => { setCurrentView('sharing'); loadConsents(); }} className={`aura-nav-link ${currentView === 'sharing' ? 'active' : ''}`}><Settings size={15}/> Consent Center</a>
-          {userProfileWidget}
-          <button onClick={handleLogout} className="aura-btn aura-btn-secondary aura-btn-sm"><LogOut size={13}/> Logout</button>
-        </nav>
+        <>
+          <a title="Dashboard" onClick={() => { setCurrentView('dashboard'); loadPatientDashboard(); }} className={`aura-nav-link ${currentView === 'dashboard' ? 'active' : ''}`}><Heart size={15}/> <span className="aura-nav-text">Dashboard</span></a>
+          <a title="Luna AI Chat" onClick={() => { setCurrentView('luna'); }} className={`aura-nav-link ${currentView === 'luna' ? 'active' : ''}`}><Activity size={15}/> <span className="aura-nav-text">Luna AI Chat</span></a>
+          <a title="Timeline" onClick={() => { setCurrentView('timeline'); loadTimeline(); }} className={`aura-nav-link ${currentView === 'timeline' ? 'active' : ''}`}><RefreshCw size={15}/> <span className="aura-nav-text">Timeline</span></a>
+          <a title="Cycle Tracker" onClick={() => { setCurrentView('cycles'); loadCycles(); }} className={`aura-nav-link ${currentView === 'cycles' ? 'active' : ''}`}><Calendar size={15}/> <span className="aura-nav-text">Cycle Tracker</span></a>
+          <a title="Reports" onClick={() => { setCurrentView('reports'); loadAnalytics(); }} className={`aura-nav-link ${currentView === 'reports' ? 'active' : ''}`}><BarChart3 size={15}/> <span className="aura-nav-text">Reports</span></a>
+          <a title="Leave" onClick={() => { setCurrentView('leave'); loadLeaveLogs(); }} className={`aura-nav-link ${currentView === 'leave' ? 'active' : ''}`}><Shield size={15}/> <span className="aura-nav-text">Leave</span></a>
+          <a title="Partner Room" onClick={() => { setCurrentView('partner_room'); loadPartnerMessages(); }} className={`aura-nav-link ${currentView === 'partner_room' ? 'active' : ''}`}><Users size={15}/> <span className="aura-nav-text">Partner Room</span></a>
+          <a title="Forum" onClick={() => { setCurrentView('forum'); loadForumThreads(selectedCategory); }} className={`aura-nav-link ${currentView === 'forum' ? 'active' : ''}`}><Users size={15}/> <span className="aura-nav-text">Forum</span></a>
+          <a title="Consent Center" onClick={() => { setCurrentView('sharing'); loadConsents(); }} className={`aura-nav-link ${currentView === 'sharing' ? 'active' : ''}`}><Settings size={15}/> <span className="aura-nav-text">Consent Center</span></a>
+        </>
       );
     }
 
     if (user.userType === 'admin') {
       return (
-        <nav className="aura-nav">
-          <a onClick={() => { setCurrentView('admin'); loadAdminConsole(); }} className={`aura-nav-link ${currentView === 'admin' ? 'active' : ''}`}><Shield size={15}/> Admin Console</a>
-          <a onClick={() => { setCurrentView('forum'); loadForumThreads(selectedCategory); }} className={`aura-nav-link ${currentView === 'forum' ? 'active' : ''}`}><Users size={15}/> Forum</a>
-          {userProfileWidget}
-          <button onClick={handleLogout} className="aura-btn aura-btn-secondary aura-btn-sm"><LogOut size={13}/> Logout</button>
-        </nav>
+        <>
+          <a title="Admin Console" onClick={() => { setCurrentView('admin'); loadAdminConsole(); }} className={`aura-nav-link ${currentView === 'admin' ? 'active' : ''}`}><Shield size={15}/> <span className="aura-nav-text">Admin Console</span></a>
+          <a title="Forum" onClick={() => { setCurrentView('forum'); loadForumThreads(selectedCategory); }} className={`aura-nav-link ${currentView === 'forum' ? 'active' : ''}`}><Users size={15}/> <span className="aura-nav-text">Forum</span></a>
+        </>
       );
     }
 
     // Doctor / Partner / Guardian
     return (
-      <nav className="aura-nav flex-wrap-mobile">
-        <a onClick={() => { setCurrentView('sharing'); loadSharedAccess(user); }} className={`aura-nav-link ${currentView === 'sharing' ? 'active' : ''}`}><Shield size={15}/> Shared Patients</a>
+      <>
+        <a title="Shared Patients" onClick={() => { setCurrentView('sharing'); loadSharedAccess(user); }} className={`aura-nav-link ${currentView === 'sharing' ? 'active' : ''}`}><Shield size={15}/> <span className="aura-nav-text">Shared Patients</span></a>
         {user.userType === 'partner' && (
-          <a onClick={() => { setCurrentView('partner_room'); loadPartnerMessages(); }} className={`aura-nav-link ${currentView === 'partner_room' ? 'active' : ''}`}><Users size={15}/> Partner Room</a>
+          <a title="Partner Room" onClick={() => { setCurrentView('partner_room'); loadPartnerMessages(); }} className={`aura-nav-link ${currentView === 'partner_room' ? 'active' : ''}`}><Users size={15}/> <span className="aura-nav-text">Partner Room</span></a>
         )}
-        <a onClick={() => { setCurrentView('forum'); loadForumThreads(selectedCategory); }} className={`aura-nav-link ${currentView === 'forum' ? 'active' : ''}`}><Users size={15}/> Forum</a>
-        {userProfileWidget}
-        <button onClick={handleLogout} className="aura-btn aura-btn-secondary aura-btn-sm"><LogOut size={13}/> Logout</button>
-      </nav>
+        <a title="Forum" onClick={() => { setCurrentView('forum'); loadForumThreads(selectedCategory); }} className={`aura-nav-link ${currentView === 'forum' ? 'active' : ''}`}><Users size={15}/> <span className="aura-nav-text">Forum</span></a>
+      </>
     );
   };
 
@@ -724,47 +773,168 @@ export default function App() {
   // SUB-VIEWS RENDERING
   // ----------------------------------------------------
 
+  // 0. Lunar Phase Cycle Loader
+  const LunarLoader = () => {
+    const [phase, setPhase] = useState(0);
+
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setPhase(p => (p + 1) % 8);
+      }, 750);
+      return () => clearInterval(timer);
+    }, []);
+
+    const phases = [
+      // 1. New Moon
+      <svg key="0" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.4" />
+      </svg>,
+      // 2. Waxing Crescent
+      <svg key="1" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.2" />
+        <path d="M12 3a9 9 0 0 1 9 9 9 9 0 0 1-9 9 6 6 0 0 0 0-18Z" fill="var(--color-primary)" />
+      </svg>,
+      // 3. First Quarter
+      <svg key="2" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.2" />
+        <path d="M12 3a9 9 0 0 1 9 9 9 9 0 0 1-9 9V3Z" fill="var(--color-primary)" />
+      </svg>,
+      // 4. Waxing Gibbous
+      <svg key="3" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.2" />
+        <path d="M12 3a9 9 0 0 1 9 9 9 9 0 0 1-9 9 3 3 0 0 1 0-18Z" fill="var(--color-primary)" />
+      </svg>,
+      // 5. Full Moon
+      <svg key="4" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" fill="var(--color-primary)" />
+      </svg>,
+      // 6. Waning Gibbous
+      <svg key="5" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.2" />
+        <path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 9 9 3 3 0 0 0 0-18Z" fill="var(--color-primary)" />
+      </svg>,
+      // 7. Third Quarter
+      <svg key="6" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.2" />
+        <path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 9 9V3Z" fill="var(--color-primary)" />
+      </svg>,
+      // 8. Waning Crescent
+      <svg key="7" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" style={{ transition: 'all 600ms ease' }}>
+        <circle cx="12" cy="12" r="9" strokeDasharray="2 2" opacity="0.2" />
+        <path d="M12 3a9 9 0 0 0-9 9 9 9 0 0 0 9 9 6 6 0 0 1 0-18Z" fill="var(--color-primary)" />
+      </svg>
+    ];
+
+    const phaseNames = [
+      'New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous',
+      'Full Moon', 'Waning Gibbous', 'Third Quarter', 'Waning Crescent'
+    ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '20px' }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
+          background: 'var(--color-accent-light)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(61, 139, 147, 0.06), inset 0 2px 4px rgba(255,255,255,0.8)',
+          border: '1px solid var(--color-border)'
+        }}>
+          {phases[phase]}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <div style={{ fontSize: '15px', color: 'var(--color-primary-dark)', fontWeight: '600', letterSpacing: '0.03em' }}>
+            Loading HerRhythm
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', transition: 'all 600ms' }}>
+            {phaseNames[phase]}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // 1. Landing Page
   const LandingPage = () => (
-    <div className="aura-landing-hero anim-slide-in">
-      <div className="aura-liquid-layer">
-        <div className="aura-hero-orb-1"></div>
-        <div className="aura-hero-orb-2"></div>
-        <div className="aura-hero-orb-3"></div>
+    <div className="aura-landing-hero">
+      {/* Animated aurora / mesh-gradient backdrop */}
+      <div className="aura-aurora">
+        <span className="aura-aurora-blob aura-blob-1"></span>
+        <span className="aura-aurora-blob aura-blob-2"></span>
+        <span className="aura-aurora-blob aura-blob-3"></span>
+        <div className="aura-aurora-grid"></div>
       </div>
-      
-      <div className="aura-container" style={{ position: 'relative', zIndex: 2 }}>
-        <h1 className="aura-landing-headline">Your Personalized Companion for Hormonal and Cycle Health</h1>
-        <p className="aura-landing-subhead">Aura Health matches symptom logs and cycle phases with AI personalization to help you understand your body and manage chronic conditions like PCOS, endometriosis, and PMDD.</p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '48px' }}>
-          <button onClick={() => setCurrentView('register')} className="aura-btn aura-btn-primary aura-btn-lg">Create Account <ChevronRight size={18}/></button>
-          <button onClick={() => setCurrentView('login')} className="aura-btn aura-btn-secondary aura-btn-lg">Login</button>
+
+      <div className="aura-container aura-hero-inner">
+        <div className="aura-hero-content">
+          <div className="aura-hero-badge">
+            <Sparkles size={14} /> AI-powered hormonal &amp; cycle intelligence
+          </div>
+
+          <h1 className="aura-landing-headline">
+            Your personalized companion for{' '}
+            <span className="aura-headline-accent">hormonal &amp; cycle health</span>
+          </h1>
+
+          <p className="aura-landing-subhead">
+            HerRhythm pairs your symptom logs and cycle phases with AI personalization — so you can
+            truly understand your body and manage chronic conditions like PCOS, endometriosis, and PMDD.
+          </p>
+
+          <div className="aura-hero-cta">
+            <button onClick={() => setCurrentView('register')} className="aura-btn aura-btn-primary aura-btn-lg">
+              Create Account <ChevronRight size={18} />
+            </button>
+            <button onClick={() => setCurrentView('login')} className="aura-btn aura-btn-secondary aura-btn-lg">
+              Login
+            </button>
+          </div>
+
+          <div className="aura-hero-stats">
+            <div className="aura-hero-stat">
+              <strong>3</strong>
+              <span>Conditions supported</span>
+            </div>
+            <div className="aura-hero-stat-divider" />
+            <div className="aura-hero-stat">
+              <strong>4</strong>
+              <span>Cycle phases tracked</span>
+            </div>
+            <div className="aura-hero-stat-divider" />
+            <div className="aura-hero-stat">
+              <strong>24/7</strong>
+              <span>Luna AI guidance</span>
+            </div>
+          </div>
         </div>
 
         <div className="aura-landing-grid">
-        <div className="aura-card aura-feature-card">
-          <div className="aura-feature-icon"><Activity size={24}/></div>
-          <h3>AI Daily Routine</h3>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginTop: '8px' }}>Get daily lists of diet, exercise, and hydration goals customized to your cycle phase and conditions.</p>
+          <div className="aura-card aura-feature-card aura-scroll-reveal" style={{ transitionDelay: '0ms' }}>
+            <div className="aura-feature-icon"><Activity size={24} /></div>
+            <h3>AI Daily Routine</h3>
+            <p>Get daily diet, exercise, and hydration goals customized to your cycle phase and conditions.</p>
+          </div>
+          <div className="aura-card aura-feature-card aura-scroll-reveal" style={{ transitionDelay: '90ms' }}>
+            <div className="aura-feature-icon"><Calendar size={24} /></div>
+            <h3>Phase Cycle Tracker</h3>
+            <p>Log period dates and get predictions across Menstrual, Follicular, Ovulatory, and Luteal phases.</p>
+          </div>
+          <div className="aura-card aura-feature-card aura-scroll-reveal" style={{ transitionDelay: '180ms' }}>
+            <div className="aura-feature-icon"><Users size={24} /></div>
+            <h3>Consented Data Sharing</h3>
+            <p>Granularly share cycle info, moods, or symptom trends with partners, guardians, or gynecologists.</p>
+          </div>
         </div>
-        <div className="aura-card aura-feature-card">
-          <div className="aura-feature-icon"><Calendar size={24}/></div>
-          <h3>Phase Cycle Tracker</h3>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginTop: '8px' }}>Log period dates and check predictions mapping to Menstrual, Follicular, Ovulatory, and Luteal phases.</p>
-        </div>
-        <div className="aura-card aura-feature-card">
-          <div className="aura-feature-icon"><Users size={24}/></div>
-          <h3>Consented Data Sharing</h3>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', marginTop: '8px' }}>Granularly share cycle info, moods, or symptom trends with partners, guardians, or gynecologists.</p>
-        </div>
-      </div>
 
-      <div className="aura-testimonial-section">
-        <div className="aura-testimonial-carousel">
-          <p className="aura-testimonial-text">"Tracking on Aura feels entirely different. Instead of just numbers, it gives me practical lifestyle items for my PCOS symptoms everyday."</p>
-          <strong style={{ color: 'var(--color-primary)' }}>— Ananya, Bengaluru</strong>
+        <div className="aura-testimonial-section aura-scroll-reveal">
+          <div className="aura-testimonial-carousel">
+            <p className="aura-testimonial-text">"Tracking on HerRhythm feels entirely different. Instead of just numbers, it gives me practical lifestyle items for my PCOS symptoms everyday."</p>
+            <strong style={{ color: 'var(--color-primary)' }}>— Ananya, Bengaluru</strong>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
@@ -899,7 +1069,7 @@ export default function App() {
               ? 'Enter patient Unique Connection ID and your email.'
               : isPartnerLogin 
               ? 'Enter email and pairing key to fast link accounts.' 
-              : (type === 'login' ? 'Enter credentials to access Aura Health.' : 'Create your secure health companion profile.')}
+              : (type === 'login' ? 'Enter credentials to access HerRhythm.' : 'Create your secure health companion profile.')}
           </p>
 
           {err && <div className="aura-badge aura-badge-error" style={{ display: 'block', padding: '8px', marginBottom: '16px', textTransform: 'none' }}>{err}</div>}
@@ -1033,19 +1203,109 @@ export default function App() {
 
   // 3. Onboarding Survey Page (For Patients)
   const OnboardingSurvey = () => {
-    const [step, setStep] = useState(1);
-    const [selectedConditions, setSelectedConditions] = useState([]);
-    const [cycleDate, setCycleDate] = useState('');
+    // Calculate user's age
+    const today = new Date();
+    const dob = user?.dateOfBirth ? new Date(user.dateOfBirth) : null;
+    let userAge = 25; // fallback
+    if (dob) {
+      userAge = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        userAge--;
+      }
+    }
 
-    const toggleCondition = (tag) => {
-      if (selectedConditions.includes(tag)) {
-        setSelectedConditions(selectedConditions.filter(t => t !== tag));
+    const isAdolescent = userAge < 18;
+    const isMature = userAge >= 40;
+
+    const [step, setStep] = useState(1);
+    const [answers, setAnswers] = useState({
+      consentProceed: 'yes',
+      consentAggregated: false,
+      startedPeriods: 'yes',
+      menarcheAge: '',
+      cycleSettle: 'settle',
+      painSchool: 'never',
+      familyHistory: [],
+      pregnant: 'no',
+      postpartum: 'no',
+      periodStatus: 'regular',
+      periodsStoppedReason: 'gradual',
+      ovariesRemoved: 'no',
+      menopause12months: 'no',
+      hotFlashes: 'never',
+      sleepMoodShift: 'none',
+      selectedConditions: [],
+      reasonForUse: 'wellness',
+      contraceptionMethod: 'no',
+      cycleStartDate: ''
+    });
+
+    const totalSteps = 4;
+
+    const updateAnswer = (key, value) => {
+      setAnswers(prev => ({ ...prev, [key]: value }));
+    };
+
+    const toggleCondition = (cond) => {
+      const current = answers.selectedConditions;
+      if (current.includes(cond)) {
+        updateAnswer('selectedConditions', current.filter(x => x !== cond));
       } else {
-        setSelectedConditions([...selectedConditions, tag]);
+        updateAnswer('selectedConditions', [...current, cond]);
+      }
+    };
+
+    const toggleFamilyHistory = (cond) => {
+      const current = answers.familyHistory;
+      if (current.includes(cond)) {
+        updateAnswer('familyHistory', current.filter(x => x !== cond));
+      } else {
+        updateAnswer('familyHistory', [...current, cond]);
       }
     };
 
     const handleSurveySubmit = async () => {
+      // Calculate life stage according to Tier 2 rules
+      let computedLifeStage = 'REPRODUCTIVE_REGULAR';
+      if (isAdolescent) {
+        if (answers.startedPeriods === 'no') {
+          computedLifeStage = 'PRE_MENARCHE';
+        } else {
+          computedLifeStage = 'ADOLESCENT';
+        }
+      } else {
+        if (answers.pregnant === 'yes' || answers.pregnant === 'not_sure') {
+          computedLifeStage = 'PREGNANCY';
+        } else if (answers.postpartum === 'yes') {
+          computedLifeStage = 'POSTPARTUM';
+        } else if (answers.periodStatus === 'regular') {
+          computedLifeStage = 'REPRODUCTIVE_REGULAR';
+        } else if (answers.periodStatus === 'irregular') {
+          computedLifeStage = 'REPRODUCTIVE_IRREGULAR';
+        } else if (answers.periodStatus === 'stopped') {
+          if (answers.periodsStoppedReason === 'surgery') {
+            if (answers.ovariesRemoved === 'yes') {
+              computedLifeStage = 'SURGICAL_MENOPAUSE';
+            } else {
+              computedLifeStage = 'NO_BLEED_OVARIES_CYCLING';
+            }
+          } else {
+            if (userAge >= 40) {
+              if (answers.menopause12months === 'yes') {
+                computedLifeStage = 'MENOPAUSE';
+              } else {
+                computedLifeStage = 'PERIMENOPAUSE';
+              }
+            } else {
+              computedLifeStage = 'POSSIBLE_POI_FLAG';
+            }
+          }
+        } else if (answers.periodStatus === 'no_periods') {
+          computedLifeStage = 'NO_BLEED_OVARIES_CYCLING';
+        }
+      }
+
       try {
         const res = await fetch(`${API_BASE}/onboarding/survey`, {
           method: 'POST',
@@ -1054,8 +1314,13 @@ export default function App() {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            conditionTags: selectedConditions,
-            cycleStartDate: cycleDate
+            conditionTags: answers.selectedConditions,
+            cycleStartDate: answers.cycleStartDate,
+            lifeStage: computedLifeStage,
+            surveyAnswers: answers,
+            consentAggregated: answers.consentAggregated,
+            locale: 'en',
+            accessibilityAccommodations: []
           })
         });
         const data = await res.json();
@@ -1067,454 +1332,414 @@ export default function App() {
         }
       } catch (err) {
         console.error(err);
+        showToast('Submission failed. Please try again.');
       }
     };
 
     return (
-      <div className="aura-onboarding-card aura-card anim-slide-in">
-        <div className="aura-onboarding-progress">
-          <div className="aura-onboarding-bar" style={{ width: `${(step / 2) * 100}%` }}></div>
+      <div className="aura-onboarding-card aura-card anim-slide-in" style={{ padding: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Personalizing HerRhythm
+          </span>
+          <span style={{ fontSize: '14px', color: 'var(--color-primary)', fontWeight: '700' }}>
+            Step {step} of {totalSteps}
+          </span>
+        </div>
+        <div className="aura-onboarding-progress" style={{ marginBottom: '32px' }}>
+          <div className="aura-onboarding-bar" style={{ width: `${(step / totalSteps) * 100}%` }}></div>
         </div>
 
+        {/* STEP 1: CONSENT & GENERAL GATES (T0-1, T0-2) */}
         {step === 1 && (
           <div>
-            <h2 className="aura-auth-title" style={{ marginBottom: '16px' }}>Do you have any diagnosed hormonal health conditions?</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>Selecting a tag customizes your daily AI routine checklist and alerts library. You can select multiple or skip.</p>
-            
-            <div className="aura-condition-selector">
-              <div 
-                className={`aura-condition-option ${selectedConditions.includes('pcos') ? 'selected' : ''}`}
-                onClick={() => toggleCondition('pcos')}
-              >
-                <div style={{ flexGrow: 1 }}>
-                  <strong>PCOS (Polycystic Ovary Syndrome)</strong>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Focuses on insulin sensitivity, diet items, and strength building routines.</p>
-                </div>
-              </div>
+            <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>Let's set up your privacy preferences</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px', lineHeight: '1.6' }}>
+              HerRhythm asks clinical health questions to personalize daily diet, cycle forecasts, and lifestyle suggestions. Your answers are private by default.
+            </p>
 
-              <div 
-                className={`aura-condition-option ${selectedConditions.includes('endometriosis') ? 'selected' : ''}`}
-                onClick={() => toggleCondition('endometriosis')}
-              >
-                <div style={{ flexGrow: 1 }}>
-                  <strong>Endometriosis</strong>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Tailored around pelvic floor exercises, soothing pain hacks, and fatigue logs.</p>
-                </div>
-              </div>
-
-              <div 
-                className={`aura-condition-option ${selectedConditions.includes('pmdd') ? 'selected' : ''}`}
-                onClick={() => toggleCondition('pmdd')}
-              >
-                <div style={{ flexGrow: 1 }}>
-                  <strong>PMDD (Premenstrual Dysphoric Disorder)</strong>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Highlights mood tracking anomalies, stress relievers, and luteal sleep routines.</p>
-                </div>
-              </div>
-            </div>
-
-            <button onClick={() => setStep(2)} className="aura-btn aura-btn-primary aura-btn-md" style={{ float: 'right', marginTop: '16px' }}>Next Step <ChevronRight size={16}/></button>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div>
-            <h2 className="aura-auth-title" style={{ marginBottom: '16px' }}>When did your last period start?</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>Used to calculate cycle length, ovulation cycles, and sync daily health recommendations.</p>
-
-            <div className="aura-input-group">
-              <label className="aura-input-label">Start Date</label>
-              <input required type="date" className="aura-input" value={cycleDate} onChange={e => setCycleDate(e.target.value)}/>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
-              <button onClick={() => setStep(1)} className="aura-btn aura-btn-secondary aura-btn-md">Back</button>
-              <button onClick={handleSurveySubmit} className="aura-btn aura-btn-primary aura-btn-md">Complete Onboarding</button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // 4. Patient Dashboard View
-  const PatientDashboard = () => {
-    const [painIntensity, setPainIntensity] = useState(0);
-    const [waterCups, setWaterCups] = useState(0);
-    const [selectedMood, setSelectedMood] = useState(3);
-    const [exerciseMin, setExerciseMin] = useState(0);
-
-    if (!dashboardData) return <div style={{ padding: '48px', textAlign: 'center' }}>Loading summary dashboard...</div>;
-
-    const { phase, cycleDay, routine, logs, recommendations, redFlagAlert, redFlagMessage } = dashboardData;
-
-    const handleLogSymptom = () => {
-      handleQuickLog('symptom', { symptom: 'pain', intensity: painIntensity }, 'Logged pain level');
-      setPainIntensity(0);
-    };
-
-    const handleLogWater = () => {
-      handleQuickLog('hydration', waterCups, 'Logged water intake');
-      setWaterCups(0);
-    };
-
-    const handleLogExercise = () => {
-      handleQuickLog('exercise', exerciseMin, 'Logged exercise minutes');
-      setExerciseMin(0);
-    };
-
-    return (
-      <div className="anim-slide-in">
-        {/* Connection/OTP Approvals Panel */}
-        {pendingOtps && pendingOtps.length > 0 && (
-          <div className="aura-card" style={{ borderLeft: '4px solid var(--color-warning)', background: 'var(--color-surface)', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <Shield size={24} style={{ color: 'var(--color-warning)', marginTop: '2px', flexShrink: 0 }}/>
-              <div style={{ flexGrow: 1 }}>
-                <h4 style={{ color: 'var(--color-primary-dark)', margin: '0 0 6px 0' }}>Pending Connection OTP Approvals</h4>
-                <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
-                  A trusted person is attempting to log in and link to your account. Please approve or decline their request.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {pendingOtps.map(req => (
-                    <div key={req._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                      <div>
-                        <strong style={{ fontSize: '13px', color: 'var(--color-primary-dark)' }}>{req.trustedEmail}</strong>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                          OTP Code: <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '0.5px', color: 'var(--color-primary)' }}>{req.otpCode}</span>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleOtpAction(req._id, 'approve')} className="aura-btn aura-btn-primary aura-btn-sm" style={{ background: 'var(--color-success)', color: 'white' }}>Approve</button>
-                        <button onClick={() => handleOtpAction(req._id, 'reject')} className="aura-btn aura-btn-secondary aura-btn-sm">Decline</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Red flag escalations */}
-        {redFlagAlert && (
-          <div className="aura-alert aura-alert-warning">
-            <AlertTriangle size={24}/>
-            <div>
-              <strong>Safety Escalation Alert</strong>
-              <p style={{ fontSize: '14px', marginTop: '4px' }}>{redFlagMessage}</p>
-            </div>
-          </div>
-        )}
-
-        <div className="aura-dashboard-header">
-          <div>
-            <h2>Welcome back, {user?.fullName}</h2>
-            <p style={{ color: 'var(--color-text-muted)' }}>Here is your personalized summary based on your health profile.</p>
-          </div>
-          <div className="aura-cycle-badge-container">
-            <div style={{ textAlign: 'right' }}>
-              <strong style={{ color: 'var(--color-primary-dark)', textTransform: 'capitalize' }}>{phase} Phase</strong>
-              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Average length: 28 days</p>
-            </div>
-            <div className="aura-cycle-ring">
-              <span className="aura-cycle-ring-day">{cycleDay}</span>
-              <span className="aura-cycle-ring-lbl">Day</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="aura-dashboard-grid">
-          {/* Main Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* Daily Routine checklist */}
-            <div className="aura-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-dark)' }}>Today's AI Daily Routine</h3>
-                <span className="aura-badge aura-badge-primary">AI Tailored</span>
-              </div>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>Mark off daily actions targeted to combat symptoms of {user?.conditionTags?.join(', ').toUpperCase()}.</p>
-              
-              <div className="aura-routine-list">
-                {routine?.items?.map((item) => (
-                  <div key={item.id} className={`aura-routine-item ${item.completed ? 'completed' : ''}`}>
-                    <div 
-                      className={`aura-routine-checkbox ${item.completed ? 'checked' : ''}`}
-                      onClick={() => handleRoutineToggle(routine._id, item.id, item.completed)}
-                    >
-                      {item.completed && <Check size={14}/>}
-                    </div>
-                    <div style={{ flexGrow: 1 }}>
-                      <strong style={{ fontSize: '14px', textDecoration: item.completed ? 'line-through' : 'none' }}>{item.title}</strong>
-                      <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{item.rationale}</p>
-                    </div>
-                    <span className="aura-badge aura-badge-primary" style={{ fontSize: '9px' }}>{item.category}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Logging Widgets */}
-            <div className="aura-card">
-              <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-dark)' }}>Quick Health Loggers</h3>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>Persist logs instantly in the cloud to update calculations across screens.</p>
-
-              <div className="aura-today-widget-grid">
-                
-                {/* Mood selector */}
-                <div className="aura-card" style={{ padding: '16px', background: 'var(--color-surface)' }}>
-                  <label className="aura-input-label">Current Mood</label>
-
-                  {/* SVG vector mood faces */}
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '12px', justifyContent: 'space-between' }}>
-                    {[
-                      // 1 — Very Low: crying, down-curved mouth, furrowed brows
-                      { val: 1, label: 'Very Low', face: (
-                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="20" cy="20" r="18" fill="var(--color-accent-light)" stroke="var(--color-accent)" strokeWidth="1.5"/>
-                          {/* Furrowed brows */}
-                          <path d="M10 14 Q13 11 16 13" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          <path d="M24 13 Q27 11 30 14" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          {/* Sad eyes */}
-                          <circle cx="14" cy="18" r="2" fill="var(--color-primary-dark)"/>
-                          <circle cx="26" cy="18" r="2" fill="var(--color-primary-dark)"/>
-                          {/* Tears */}
-                          <path d="M13 21 Q12 24 13 26" stroke="#7EB8D4" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-                          <path d="M27 21 Q28 24 27 26" stroke="#7EB8D4" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
-                          {/* Down-curved mouth */}
-                          <path d="M13 30 Q20 25 27 30" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                        </svg>
-                      )},
-                      // 2 — Low: flat-sad mouth, slight brow dip
-                      { val: 2, label: 'Low', face: (
-                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="20" cy="20" r="18" fill="var(--color-accent-light)" stroke="var(--color-accent)" strokeWidth="1.5"/>
-                          {/* Mild brows */}
-                          <path d="M11 15 Q14 13 16 14.5" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          <path d="M24 14.5 Q26 13 29 15" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          {/* Downcast eyes */}
-                          <circle cx="14" cy="19" r="2" fill="var(--color-primary-dark)"/>
-                          <circle cx="26" cy="19" r="2" fill="var(--color-primary-dark)"/>
-                          {/* Slightly sad mouth */}
-                          <path d="M14 29 Q20 26 26 29" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                        </svg>
-                      )},
-                      // 3 — Moderate: neutral flat mouth, relaxed brows
-                      { val: 3, label: 'Moderate', face: (
-                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="20" cy="20" r="18" fill="var(--color-accent-light)" stroke="var(--color-accent)" strokeWidth="1.5"/>
-                          {/* Flat brows */}
-                          <path d="M11 15 L16 15" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round"/>
-                          <path d="M24 15 L29 15" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round"/>
-                          {/* Neutral eyes */}
-                          <circle cx="14" cy="20" r="2" fill="var(--color-primary-dark)"/>
-                          <circle cx="26" cy="20" r="2" fill="var(--color-primary-dark)"/>
-                          {/* Straight mouth */}
-                          <path d="M14 28 L26 28" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
-                      )},
-                      // 4 — High: slight smile, raised brows
-                      { val: 4, label: 'High', face: (
-                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="20" cy="20" r="18" fill="var(--color-accent-light)" stroke="var(--color-accent)" strokeWidth="1.5"/>
-                          {/* Slightly raised brows */}
-                          <path d="M11 14 Q14 12.5 16 13.5" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          <path d="M24 13.5 Q26 12.5 29 14" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          {/* Happy eyes — slight squint */}
-                          <path d="M12 19 Q14 17 16 19" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          <path d="M24 19 Q26 17 28 19" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          {/* Smile */}
-                          <path d="M13 26 Q20 31 27 26" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                        </svg>
-                      )},
-                      // 5 — Very High: big smile, cheeks, squinted eyes
-                      { val: 5, label: 'Very High', face: (
-                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="20" cy="20" r="18" fill="var(--color-accent-light)" stroke="var(--color-accent)" strokeWidth="1.5"/>
-                          {/* High arched brows */}
-                          <path d="M11 13 Q14 10 16 12" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          <path d="M24 12 Q26 10 29 13" stroke="var(--color-primary-dark)" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                          {/* Squinted happy eyes */}
-                          <path d="M11 18 Q14 15.5 17 18" stroke="var(--color-primary-dark)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
-                          <path d="M23 18 Q26 15.5 29 18" stroke="var(--color-primary-dark)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
-                          {/* Rosy cheeks */}
-                          <circle cx="10" cy="23" r="3" fill="var(--color-accent)" opacity="0.35"/>
-                          <circle cx="30" cy="23" r="3" fill="var(--color-accent)" opacity="0.35"/>
-                          {/* Big open smile */}
-                          <path d="M12 25 Q20 33 28 25" stroke="var(--color-primary-dark)" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
-                        </svg>
-                      )},
-                    ].map(({ val, label, face }) => {
-                      const isSelected = logs?.mood === val;
-                      const hasAny = logs?.mood != null;
-                      return (
-                        <button
-                          key={val}
-                          title={label}
-                          onClick={() => handleQuickLog('mood', val, 'Quick mood log')}
-                          style={{
-                            width: 44, height: 44,
-                            padding: 0, border: 'none', background: 'none',
-                            cursor: 'pointer', borderRadius: '50%',
-                            transform: isSelected ? 'scale(1.25)' : 'scale(1)',
-                            opacity: hasAny && !isSelected ? 0.45 : 1,
-                            outline: isSelected ? '2px solid var(--color-accent)' : '2px solid transparent',
-                            outlineOffset: '2px',
-                            boxShadow: isSelected ? '0 0 0 4px var(--color-accent-light)' : 'none',
-                            transition: 'all 220ms cubic-bezier(.34,1.56,.64,1)',
-                          }}
-                        >
-                          {face}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <p style={{ fontSize: '12px', marginTop: '10px', color: 'var(--color-text-muted)' }}>
-                    Current log: {logs?.mood ? ['Very Low', 'Low', 'Moderate', 'High', 'Very High'][logs.mood - 1] : 'None logged today'}
-                  </p>
-                </div>
-
-                {/* Hydration Logger */}
-                <div className="aura-card" style={{ padding: '16px', background: 'var(--color-surface)' }}>
-                  <label className="aura-input-label">Hydration (Target: 3L)</label>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <input 
-                      type="number" 
-                      placeholder="e.g. 250" 
-                      className="aura-input" 
-                      style={{ height: '32px' }} 
-                      value={waterCups || ''} 
-                      onChange={e => setWaterCups(Number(e.target.value))}
-                    />
-                    <button onClick={handleLogWater} className="aura-btn aura-btn-primary aura-btn-sm">Log (ml)</button>
-                  </div>
-                  <div style={{ marginTop: '12px', height: '6px', background: '#EFE3ED', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: 'var(--color-primary)', width: `${Math.min((logs?.hydration / 3000) * 100, 100)}%` }}></div>
-                  </div>
-                  <p style={{ fontSize: '12px', marginTop: '8px', color: 'var(--color-text-muted)' }}>
-                    Logged today: {logs?.hydration || 0} / 3000 ml
-                  </p>
-                </div>
-
-                {/* Pain Intensity Slider */}
-                <div className="aura-card" style={{ padding: '16px', background: 'var(--color-surface)' }}>
-                  <label className="aura-input-label">Pain Level (0 - 10)</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
-                    <input 
-                      type="range" min="0" max="10" 
-                      style={{ flexGrow: 1 }} 
-                      value={painIntensity} 
-                      onChange={e => setPainIntensity(Number(e.target.value))}
-                    />
-                    <span style={{ fontWeight: 'bold', minWidth: '20px' }}>{painIntensity}</span>
-                    <button onClick={handleLogSymptom} className="aura-btn aura-btn-primary aura-btn-sm">Log</button>
-                  </div>
-                  <p style={{ fontSize: '12px', marginTop: '8px', color: 'var(--color-text-muted)' }}>
-                    Today's peak pain: {logs?.pain != null ? `${logs.pain}/10` : 'None logged'}
-                  </p>
-                </div>
-
-                {/* Exercise log */}
-                <div className="aura-card" style={{ padding: '16px', background: 'var(--color-surface)' }}>
-                  <label className="aura-input-label">Exercise minutes</label>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <input 
-                      type="number" 
-                      placeholder="min" 
-                      className="aura-input" 
-                      style={{ height: '32px' }} 
-                      value={exerciseMin || ''} 
-                      onChange={e => setExerciseMin(Number(e.target.value))}
-                    />
-                    <button onClick={handleLogExercise} className="aura-btn aura-btn-primary aura-btn-sm">Log</button>
-                  </div>
-                  <p style={{ fontSize: '12px', marginTop: '8px', color: 'var(--color-text-muted)' }}>
-                    Today's total: {logs?.exercise || 0} minutes
-                  </p>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* Right Sidebar */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* AI Recommendation Orb */}
-            <div className="aura-card aura-ai-card">
-              <div className="aura-ai-card-bg"></div>
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                  <Activity className="anim-float" size={20}/>
-                  <strong style={{ textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.05em' }}>Aura AI Guidance</strong>
-                </div>
-                {recommendations && recommendations.length > 0 ? (
-                  <div>
-                    <h4 style={{ fontSize: '18px', marginBottom: '8px' }}>{recommendations[0].title}</h4>
-                    <p style={{ fontSize: '13px', lineHeight: '1.4', opacity: 0.9 }}>{recommendations[0].description}</p>
-                    
-                    <div style={{ marginTop: '16px', background: 'rgba(255,255,255,0.15)', padding: '12px', borderRadius: '8px', fontSize: '12px' }}>
-                      <strong>Why am I seeing this?</strong>
-                      <p style={{ marginTop: '4px', opacity: 0.9 }}>
-                        Condition: {user?.conditionTags?.join(', ').toUpperCase()}. Current phase: {phase}. Logs evaluated.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: '13px' }}>AI evaluates logs daily. Keeping tracking consistency improves outputs.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Streak & Adherence */}
-            <div className="aura-card">
-              <h3>Streak & Adherence</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                  <strong>7</strong>
-                </div>
-                <div>
-                  <strong>7 Day Logging Streak</strong>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Keep tracking daily to preserve AI precision metrics!</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Unique Share ID Card */}
-            <div className="aura-card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <Key size={18} style={{ color: 'var(--color-primary)' }}/>
-                <h3 style={{ margin: 0 }}>Unique Connection ID</h3>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '14px' }}>
-                Share this ID with a trusted partner or loved one to link profiles via secure OTP validation.
-              </p>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--color-surface)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
-                <code style={{ fontSize: '13px', fontFamily: 'monospace', fontWeight: 'bold', flexGrow: 1, color: 'var(--color-primary-dark)' }}>
-                  {user?.uniqueShareId || 'Not Generated Yet'}
-                </code>
+            <div className="aura-input-group" style={{ marginBottom: '24px' }}>
+              <label className="aura-input-label" style={{ marginBottom: '12px' }}>Do you consent to proceed with clinical personalization?</label>
+              <div style={{ display: 'flex', gap: '12px' }}>
                 <button 
-                  onClick={() => {
-                    if (user?.uniqueShareId) {
-                      navigator.clipboard.writeText(user.uniqueShareId);
-                      showToast('Copied Share ID!');
-                    }
-                  }} 
-                  className="aura-btn aura-btn-secondary aura-btn-sm" 
-                  style={{ padding: '0 8px', height: '28px', background: 'white' }}
+                  type="button"
+                  onClick={() => updateAnswer('consentProceed', 'yes')} 
+                  className={`aura-btn ${answers.consentProceed === 'yes' ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                  style={{ flexGrow: 1 }}
                 >
-                  Copy
+                  Yes, I consent
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => updateAnswer('consentProceed', 'no')} 
+                  className={`aura-btn ${answers.consentProceed === 'no' ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                  style={{ flexGrow: 1 }}
+                >
+                  No, use anonymously
                 </button>
               </div>
             </div>
 
+            <div className="aura-card" style={{ padding: '16px', background: 'var(--color-surface)', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <input 
+                type="checkbox" 
+                id="agg-consent"
+                checked={answers.consentAggregated}
+                onChange={e => updateAnswer('consentAggregated', e.target.checked)}
+                style={{ marginTop: '4px', cursor: 'pointer', width: '18px', height: '18px' }}
+              />
+              <label htmlFor="agg-consent" style={{ fontSize: '13px', color: 'var(--color-text-primary)', cursor: 'pointer', lineHeight: '1.5' }}>
+                <strong>Support Women's Health Research (Optional)</strong><br />
+                I agree to let HerRhythm share my fully anonymized, aggregated symptom data with medical institutions to improve chronic care research (PCOS, endometriosis). You can change this anytime.
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '32px' }}>
+              <button 
+                onClick={() => setStep(2)} 
+                disabled={answers.consentProceed === 'no'}
+                className="aura-btn aura-btn-primary"
+                style={{ opacity: answers.consentProceed === 'no' ? 0.6 : 1 }}
+              >
+                Continue <ChevronRight size={16}/>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* STEP 2: DYNAMIC BRANCH QUESTIONS BY AGE */}
+        {step === 2 && (
+          <div>
+            {/* ADOLESCENT CLINICAL QUESTIONS */}
+            {isAdolescent ? (
+              <div>
+                <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>How old are you, and have you started your period?</h2>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>Tailors predictions to your body development phase.</p>
+
+                <div className="aura-input-group" style={{ marginBottom: '20px' }}>
+                  <label className="aura-input-label">Have you started getting your period yet?</label>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                    <button 
+                      type="button"
+                      onClick={() => updateAnswer('startedPeriods', 'yes')} 
+                      className={`aura-btn ${answers.startedPeriods === 'yes' ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                      style={{ flexGrow: 1 }}
+                    >
+                      Yes, I have
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => updateAnswer('startedPeriods', 'no')} 
+                      className={`aura-btn ${answers.startedPeriods === 'no' ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                      style={{ flexGrow: 1 }}
+                    >
+                      No, not yet
+                    </button>
+                  </div>
+                </div>
+
+                {answers.startedPeriods === 'yes' && (
+                  <div className="aura-input-group">
+                    <label className="aura-input-label">At what age did your period start?</label>
+                    <input 
+                      type="number" 
+                      min="8" 
+                      max="18" 
+                      className="aura-input" 
+                      placeholder="e.g. 12" 
+                      value={answers.menarcheAge} 
+                      onChange={e => updateAnswer('menarcheAge', e.target.value)} 
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ADULT & MATURE SAFETY CLASSIFICATIONS */
+              <div>
+                <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>Safety & cycle tracking screening</h2>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>Essential to filter alerts and ensure medical safety.</p>
+
+                <div className="aura-input-group" style={{ marginBottom: '20px' }}>
+                  <label className="aura-input-label">Is there any chance you are pregnant right now?</label>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                    {['yes', 'no', 'not_sure'].map(val => (
+                      <button 
+                        key={val}
+                        type="button"
+                        onClick={() => updateAnswer('pregnant', val)} 
+                        className={`aura-btn ${answers.pregnant === val ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                        style={{ flexGrow: 1, textTransform: 'capitalize' }}
+                      >
+                        {val === 'not_sure' ? 'Not sure' : val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="aura-input-group">
+                  <label className="aura-input-label">Have you been pregnant or given birth in the past 12 months?</label>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                    {['yes', 'no'].map(val => (
+                      <button 
+                        key={val}
+                        type="button"
+                        onClick={() => updateAnswer('postpartum', val)} 
+                        className={`aura-btn ${answers.postpartum === val ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                        style={{ flexGrow: 1, textTransform: 'capitalize' }}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button onClick={() => setStep(1)} className="aura-btn aura-btn-secondary">Back</button>
+              <button onClick={() => setStep(3)} className="aura-btn aura-btn-primary">Next Step <ChevronRight size={16}/></button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: SPECIFIC CYCLE STATUS & SYMPTOMS */}
+        {step === 3 && (
+          <div>
+            {/* ADOLESCENT DYNAMIC CYCLE / PAIN OPTIONS */}
+            {isAdolescent ? (
+              <div>
+                {answers.startedPeriods === 'yes' ? (
+                  <div>
+                    <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>Your cycle rhythm & comfort</h2>
+                    <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>It takes 2–3 years for teen periods to become regular. We account for this.</p>
+
+                    <div className="aura-input-group" style={{ marginBottom: '20px' }}>
+                      <label className="aura-input-label">How would you describe your cycle length lately?</label>
+                      <select className="aura-input" value={answers.cycleSettle} onChange={e => updateAnswer('cycleSettle', e.target.value)}>
+                        <option value="different">Pretty different each time (highly irregular)</option>
+                        <option value="settle">Starting to settle into a predictable pattern</option>
+                        <option value="not_sure">I'm not sure yet</option>
+                      </select>
+                    </div>
+
+                    <div className="aura-input-group">
+                      <label className="aura-input-label">Does period cramps or pain keep you home from school?</label>
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                        {['never', 'sometimes', 'often'].map(val => (
+                          <button 
+                            key={val}
+                            type="button"
+                            onClick={() => updateAnswer('painSchool', val)} 
+                            className={`aura-btn ${answers.painSchool === val ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                            style={{ flexGrow: 1, textTransform: 'capitalize' }}
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>Pre-Menarche Status</h2>
+                    <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px', lineHeight: '1.6' }}>
+                      Since you haven't started your period yet, HerRhythm will focus purely on general health tips, body changes, activity habits, and stress management guides.
+                    </p>
+                    <div className="aura-card" style={{ padding: '16px', background: 'var(--color-accent-light)', border: '1px solid var(--color-border)' }}>
+                      💡 Period tracking, flow logs, and cycle phases will remain hidden until you log your first period.
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ADULT & MATURE DYNAMIC CYCLE & MENOPAUSE STATUS */
+              <div>
+                <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>Current cycle status & history</h2>
+                <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>Staging helps align hormonal and symptom metrics.</p>
+
+                <div className="aura-input-group" style={{ marginBottom: '20px' }}>
+                  <label className="aura-input-label">How would you describe your periods right now?</label>
+                  <select className="aura-input" value={answers.periodStatus} onChange={e => updateAnswer('periodStatus', e.target.value)}>
+                    <option value="regular">Regular (bleeding occurs predictably)</option>
+                    <option value="irregular">Irregular (varies significantly month-to-month)</option>
+                    <option value="stopped">Stopped (periods have completely ceased)</option>
+                    <option value="no_periods">I don't get periods (due to IUD, medication, etc.)</option>
+                  </select>
+                </div>
+
+                {/* Stopped detail questions (B1, B2, Menopause) */}
+                {answers.periodStatus === 'stopped' && (
+                  <div className="aura-card" style={{ padding: '20px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', marginBottom: '20px' }}>
+                    <div className="aura-input-group" style={{ marginBottom: '16px' }}>
+                      <label className="aura-input-label">What led to your periods stopping?</label>
+                      <select className="aura-input" value={answers.periodsStoppedReason} onChange={e => updateAnswer('periodsStoppedReason', e.target.value)}>
+                        <option value="surgery">Surgery or medical treatment (e.g. hysterectomy)</option>
+                        <option value="gradual">Gradually, on its own (natural transition)</option>
+                      </select>
+                    </div>
+
+                    {answers.periodsStoppedReason === 'surgery' ? (
+                      <div className="aura-input-group">
+                        <label className="aura-input-label">Were your ovaries removed during this treatment?</label>
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                          {['yes', 'no'].map(val => (
+                            <button 
+                              key={val}
+                              type="button"
+                              onClick={() => updateAnswer('ovariesRemoved', val)} 
+                              className={`aura-btn ${answers.ovariesRemoved === val ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                              style={{ flexGrow: 1, textTransform: 'capitalize' }}
+                            >
+                              {val}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      isMature && (
+                        <div className="aura-input-group">
+                          <label className="aura-input-label">Has it been 12 consecutive months since your last period?</label>
+                          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                            {['yes', 'no'].map(val => (
+                              <button 
+                                key={val}
+                                type="button"
+                                onClick={() => updateAnswer('menopause12months', val)} 
+                                className={`aura-btn ${answers.menopause12months === val ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                                style={{ flexGrow: 1, textTransform: 'capitalize' }}
+                              >
+                                {val}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                {/* Regular or Irregular date picker */}
+                {(answers.periodStatus === 'regular' || answers.periodStatus === 'irregular') && (
+                  <div className="aura-input-group">
+                    <label className="aura-input-label">When did your last period start?</label>
+                    <input 
+                      type="date" 
+                      className="aura-input" 
+                      value={answers.cycleStartDate} 
+                      onChange={e => updateAnswer('cycleStartDate', e.target.value)} 
+                    />
+                  </div>
+                )}
+
+                {/* Mature / Perimenopause vasomotor symptoms */}
+                {isMature && (answers.periodStatus === 'stopped' || answers.periodStatus === 'irregular') && (
+                  <div className="aura-card" style={{ padding: '20px', background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                    <div className="aura-input-group" style={{ marginBottom: '16px' }}>
+                      <label className="aura-input-label">Do you experience hot flashes or night sweats?</label>
+                      <select className="aura-input" value={answers.hotFlashes} onChange={e => updateAnswer('hotFlashes', e.target.value)}>
+                        <option value="never">Never</option>
+                        <option value="occasionally">Occasionally</option>
+                        <option value="frequently">Frequently</option>
+                      </select>
+                    </div>
+
+                    <div className="aura-input-group">
+                      <label className="aura-input-label">How has your sleep and mood been shifts lately?</label>
+                      <select className="aura-input" value={answers.sleepMoodShift} onChange={e => updateAnswer('sleepMoodShift', e.target.value)}>
+                        <option value="none">No major shifts</option>
+                        <option value="sleep">Mainly sleep issues / night awakenings</option>
+                        <option value="mood">Mainly mood swings / anxiety spikes</option>
+                        <option value="both">Both sleep issues and mood shifts</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button onClick={() => setStep(2)} className="aura-btn aura-btn-secondary">Back</button>
+              <button onClick={() => setStep(4)} className="aura-btn aura-btn-primary">Next Step <ChevronRight size={16}/></button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: DIAGNOSED CONDITIONS & USE REASONS */}
+        {step === 4 && (
+          <div>
+            <h2 className="aura-auth-title" style={{ marginBottom: '12px', textAlign: 'left' }}>Medical history & app objectives</h2>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px', fontSize: '14px' }}>This customizes AI suggestions and prevents redundant warnings.</p>
+
+            <div className="aura-input-group" style={{ marginBottom: '24px' }}>
+              <label className="aura-input-label" style={{ marginBottom: '12px' }}>Do you currently have any diagnosed condition from this list? (Select all)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {['pcos', 'thyroid', 'diabetes', 'endometriosis'].map(cond => (
+                  <button 
+                    key={cond}
+                    type="button"
+                    onClick={() => toggleCondition(cond)}
+                    className={`aura-btn ${answers.selectedConditions.includes(cond) ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                    style={{ textTransform: 'uppercase', fontSize: '12px' }}
+                  >
+                    {cond === 'thyroid' ? 'Thyroid disorder' : cond}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {isAdolescent ? (
+              <div className="aura-input-group">
+                <label className="aura-input-label" style={{ marginBottom: '12px' }}>Any family history of PCOS, thyroid issues, or endometriosis?</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {['pcos', 'thyroid', 'endometriosis'].map(cond => (
+                    <button 
+                      key={cond}
+                      type="button"
+                      onClick={() => toggleFamilyHistory(cond)}
+                      className={`aura-btn ${answers.familyHistory.includes(cond) ? 'aura-btn-primary' : 'aura-btn-secondary'}`}
+                      style={{ textTransform: 'uppercase', fontSize: '12px' }}
+                    >
+                      {cond === 'thyroid' ? 'Thyroid disorder' : cond}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="aura-input-group" style={{ marginBottom: '20px' }}>
+                  <label className="aura-input-label">What brought you to HerRhythm today?</label>
+                  <select className="aura-input" value={answers.reasonForUse} onChange={e => updateAnswer('reasonForUse', e.target.value)}>
+                    <option value="track">Track my cycle phase</option>
+                    <option value="symptom">Understand a symptom</option>
+                    <option value="conceive">Trying to conceive (TTC)</option>
+                    <option value="avoid">Avoid pregnancy</option>
+                    <option value="wellness">General health & wellness</option>
+                  </select>
+                </div>
+
+                {answers.reasonForUse === 'avoid' && (
+                  <div className="aura-input-group">
+                    <label className="aura-input-label">Are you using a hormonal method of contraception?</label>
+                    <select className="aura-input" value={answers.contraceptionMethod} onChange={e => updateAnswer('contraceptionMethod', e.target.value)}>
+                      <option value="yes">Yes, active hormonal method (Pill, IUD, Injection, Implant)</option>
+                      <option value="no">No, tracking natural cycle</option>
+                      <option value="non_hormonal">Using a non-hormonal method (Copper IUD, barriers)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px' }}>
+              <button onClick={() => setStep(3)} className="aura-btn aura-btn-secondary">Back</button>
+              <button onClick={handleSurveySubmit} className="aura-btn aura-btn-primary">Complete Onboarding</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
+      // 4. Patient Dashboard View is now imported from ./components/PatientDashboard 
 
   // 5. Cycle Tracker View
   const CycleTracker = () => {
@@ -1546,7 +1771,6 @@ export default function App() {
 
     const handleFlowSubmit = async (e) => {
       e.preventDefault();
-      // Find current active cycle
       const active = cycles.find(c => c.endDate === null);
       if (!active) {
         showToast('Please start a cycle before logging flow level.');
@@ -1572,31 +1796,26 @@ export default function App() {
       }
     };
 
-    // Build interactive calendar grid for current month
-    const renderCalendar = () => {
-      const days = [];
+    const renderCircleGrid = () => {
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth();
       const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
       const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-      // Placeholder empty days
+      const days = [];
+      // Spacer cells
       for (let i = 0; i < firstDayIndex; i++) {
-        days.push(<div key={`empty-${i}`} className="aura-calendar-day" style={{ border: 'none', opacity: 0 }}></div>);
+        days.push({ dayNum: "", class: "", hasFlow: false, isToday: false });
       }
-
-      // Generate days
       for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
         const dayDate = new Date(currentYear, currentMonth, dayNum);
         dayDate.setHours(0, 0, 0, 0);
 
         let dayClass = '';
-        let isToday = dayDate.getTime() === new Date().setHours(0, 0, 0, 0);
+        const isToday = dayDate.getTime() === new Date().setHours(0, 0, 0, 0);
         let hasFlow = false;
-        let flowLevelName = '';
 
-        // Match cycles for phase styling
         cycles.forEach(c => {
           const start = new Date(c.startDate);
           start.setHours(0, 0, 0, 0);
@@ -1605,7 +1824,6 @@ export default function App() {
           end.setHours(0, 0, 0, 0);
 
           if (dayDate >= start && dayDate <= end) {
-            // Find difference
             const diffDays = Math.ceil(Math.abs(dayDate - start) / (1000 * 60 * 60 * 24)) + 1;
             const cycleDay = ((diffDays - 1) % 28) + 1;
 
@@ -1614,7 +1832,6 @@ export default function App() {
             else if (cycleDay <= 16) dayClass = 'ovulatory';
             else dayClass = 'luteal';
 
-            // Check if flow logged for date
             const flowLog = c.flowIntensity.find(f => {
               const d = new Date(f.date);
               d.setHours(0, 0, 0, 0);
@@ -1622,12 +1839,10 @@ export default function App() {
             });
             if (flowLog) {
               hasFlow = true;
-              flowLevelName = flowLog.level;
             }
           }
         });
 
-        // Match predicted start date
         if (prediction && prediction.predictedNextStart) {
           const pred = new Date(prediction.predictedNextStart);
           pred.setHours(0, 0, 0, 0);
@@ -1636,58 +1851,206 @@ export default function App() {
           }
         }
 
-        days.push(
-          <div key={dayNum} className={`aura-calendar-day ${dayClass} ${isToday ? 'today' : ''}`} title={hasFlow ? `Flow: ${flowLevelName}` : ''}>
-            {dayNum}
-            {hasFlow && <div className="aura-flow-dot"></div>}
-          </div>
-        );
+        days.push({ dayNum, class: dayClass, hasFlow, isToday });
       }
 
-      return days;
+      // Fill remaining to keep grid aligned
+      const totalCells = Math.ceil(days.length / 7) * 7;
+      while (days.length < totalCells) {
+        days.push({ dayNum: "", class: "", hasFlow: false, isToday: false });
+      }
+
+      return days.map((cell, idx) => {
+        const { dayNum, class: cls, hasFlow, isToday } = cell;
+        
+        let bg = 'none';
+        let color = 'var(--color-text-primary)';
+        let border = 'none';
+        
+        if (cls === 'menstrual') {
+          bg = 'var(--color-accent-light)';
+          color = 'var(--color-primary)';
+        } else if (cls === 'follicular') {
+          bg = '#E8F5EE';
+          color = 'var(--color-success)';
+        } else if (cls === 'ovulatory') {
+          bg = '#FFF9E6';
+          color = 'var(--color-warning)';
+        } else if (cls === 'luteal') {
+          bg = '#F3EFFB';
+          color = 'var(--color-primary-dark)';
+        } else if (cls === 'predicted') {
+          border = '1px dashed var(--color-accent)';
+        }
+        
+        if (isToday) {
+          bg = 'var(--color-primary)';
+          color = 'white';
+        }
+
+        return (
+          <div key={idx} style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            fontSize: '11px', 
+            fontWeight: dayNum ? '600' : '400', 
+            color,
+            background: bg,
+            border,
+            borderRadius: '50%',
+            width: '22px',
+            height: '22px',
+            margin: '0 auto',
+            position: 'relative',
+            cursor: dayNum ? 'pointer' : 'default'
+          }}>
+            {dayNum}
+            {hasFlow && (
+              <span style={{
+                position: 'absolute',
+                bottom: '1px',
+                right: '1px',
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                background: 'var(--color-primary)'
+              }}/>
+            )}
+          </div>
+        );
+      });
     };
+
 
     return (
       <div className="anim-slide-in">
-        <h2>Cycle Tracking Calendar</h2>
-        <p style={{ color: 'var(--color-text-muted)', marginBottom: '24px' }}>Log start dates and view predictions of the four cycle phases.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', alignItems: 'start' }} className="aura-dashboard-grid-responsive">
+          
+          {/* Left Column - Cycle Dashboard */}
+          <div>
+            <h2 style={{ fontSize: '26px', fontWeight: '800', marginBottom: '20px', color: 'var(--color-text-primary)' }}>Cycle Dashboard</h2>
+            <div className="aura-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px' }}>
+              
+              {/* Circular Calendar Wheel */}
+              {(() => {
+                const currentDay = dashboardData?.cycleDay || 1;
+                const angle = (currentDay / 28) * 2 * Math.PI - Math.PI / 2;
+                const pointerX = 120 + 110 * Math.cos(angle);
+                const pointerY = 120 + 110 * Math.sin(angle);
+                
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const prevMonth = new Date();
+                prevMonth.setMonth(prevMonth.getMonth() - 1);
+                
+                const nextMonthName = nextMonth.toLocaleString('default', { month: 'short' });
+                const prevMonthName = prevMonth.toLocaleString('default', { month: 'short' });
 
-        {prediction && (
-          <div className="aura-alert" style={{ background: '#FBEFF2', borderLeft: '4px solid var(--color-accent)', color: 'var(--color-primary-dark)' }}>
-            <Calendar size={20}/>
-            <div>
-              <strong>Next Period Prediction</strong>
-              <p style={{ fontSize: '14px', marginTop: '4px' }}>
-                Your next cycle is predicted to start on <strong>{new Date(prediction.predictedNextStart).toLocaleDateString()}</strong> (28-day model cycle average).
-              </p>
+                return (
+                  <div style={{
+                    position: 'relative',
+                    width: '240px',
+                    height: '240px',
+                    borderRadius: '50%',
+                    background: 'conic-gradient(var(--color-primary) 0% 18%, var(--color-accent) 18% 43%, var(--color-accent-light) 43% 57%, var(--color-lavender) 57% 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: 'var(--shadow-md)',
+                    marginBottom: '24px'
+                  }}>
+                    {/* Dial pointer indicator dot */}
+                    <div style={{
+                      position: 'absolute',
+                      left: `${pointerX - 6}px`,
+                      top: `${pointerY - 6}px`,
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      border: '2px solid var(--color-primary)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      zIndex: 10
+                    }} title={`Current day ${currentDay}`} />
+
+                    {/* Inner white circle masking the ring */}
+                    <div style={{
+                      width: '216px',
+                      height: '216px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '16px',
+                      position: 'relative'
+                    }}>
+                      {/* Month Label Top */}
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-text-muted)', position: 'absolute', top: '10px', textTransform: 'uppercase' }}>{prevMonthName}</span>
+                      
+                      {/* Days grid inside wheel */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', width: '100%', marginTop: '16px' }}>
+                        {renderCircleGrid()}
+                      </div>
+
+                      {/* Month Label Bottom */}
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-text-muted)', position: 'absolute', bottom: '10px', textTransform: 'uppercase' }}>{nextMonthName}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Legends and Info grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', borderTop: '1px solid var(--color-border)', paddingTop: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-primary)' }}></span> Menstrual Phase
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-accent)' }}></span> Follicular Phase
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-accent-light)' }}></span> Ovulatory Phase
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--color-lavender)' }}></span> Luteal Phase
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Current Day</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <span style={{ background: 'var(--color-primary)', color: 'white', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px' }}>
+                        {dashboardData?.cycleDay || 2}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>Expected Next</span>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', fontWeight: '600' }}>
+                      {prediction?.predictedNextStart ? new Date(prediction.predictedNextStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 3, 2023'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick action buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', marginTop: '20px' }}>
+                <button onClick={() => setCurrentView('timeline')} className="aura-btn aura-btn-secondary" style={{ height: '40px', fontSize: '13px', justifyContent: 'center' }}>
+                  <Activity size={14} style={{ marginRight: '6px' }}/> Log Symptoms
+                </button>
+                <button onClick={() => setCurrentView('dashboard')} className="aura-btn aura-btn-secondary" style={{ height: '40px', fontSize: '13px', justifyContent: 'center' }}>
+                  Record Mood
+                </button>
+              </div>
+
             </div>
           </div>
-        )}
 
-        <div className="aura-dashboard-grid">
-          {/* Calendar */}
-          <div className="aura-card">
-            <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-dark)' }}>
-              {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
-            </h3>
-            
-            <div className="aura-calendar-grid">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                <div key={d} className="aura-calendar-day-header">{d}</div>
-              ))}
-              {renderCalendar()}
-            </div>
-
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '24px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '3px', background: '#FBEFF2' }}></span> Menstrual</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '3px', background: '#E8F5EE' }}></span> Follicular</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '3px', background: '#FFF9E6' }}></span> Ovulatory</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '3px', background: '#F3EFFB' }}></span> Luteal</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ display: 'inline-block', width: '12px', height: '12px', border: '1px dashed var(--color-accent)' }}></span> Predicted Start</div>
-            </div>
-          </div>
-
-          {/* Loggers */}
+          {/* Right Column - Loggers */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div className="aura-card">
               <h3>Start a New Cycle</h3>
@@ -1720,6 +2083,7 @@ export default function App() {
               </form>
             </div>
           </div>
+
         </div>
       </div>
     );
@@ -1889,6 +2253,37 @@ export default function App() {
     const [profileDob, setProfileDob] = useState(user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '');
     const [profileImg, setProfileImg] = useState(user?.profileImage || '');
     const [isUpdating, setIsUpdating] = useState(false);
+
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteError, setDeleteError] = useState('');
+
+    const handleDeleteAccountSubmit = async () => {
+      setDeleteError('');
+      try {
+        const res = await fetch(`${API_BASE}/users/me`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ password: deletePassword })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Account deleted. Logged out.');
+          setShowDeleteModal(false);
+          setToken(null);
+          setUser(null);
+          setCurrentView('landing');
+        } else {
+          setDeleteError(data.error?.message || 'Password incorrect or deletion failed.');
+        }
+      } catch (err) {
+        console.error(err);
+        setDeleteError('Server connection failed.');
+      }
+    };
 
     const handleScopeChange = (sc) => {
       if (selectedScope.includes(sc)) {
@@ -2072,6 +2467,80 @@ export default function App() {
             </div>
           </form>
         </div>
+
+        {/* Account Deletion */}
+        <div className="aura-card" style={{ marginTop: '24px', borderColor: 'var(--color-error)', borderLeft: '4px solid var(--color-error)' }}>
+          <h3 style={{ color: 'var(--color-error)' }}>Delete Account</h3>
+          <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+            Under Digital Personal Data Protection (DPDP) Act provisions, you have the right to erasure. This will soft-delete your account for a 30-day grace period, after which all records will be permanently erased.
+          </p>
+
+          <button 
+            type="button" 
+            onClick={() => setShowDeleteModal(true)} 
+            className="aura-btn aura-btn-danger aura-btn-md"
+          >
+            Delete Account
+          </button>
+        </div>
+
+        {showDeleteModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999
+          }}>
+            <div className="aura-card" style={{ maxWidth: '400px', width: '90%', padding: '24px' }}>
+              <h3 style={{ color: 'var(--color-error)', marginBottom: '12px' }}>Confirm Account Deletion</h3>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: '1.4', marginBottom: '16px' }}>
+                WARNING: Deleting your account will soft-delete your data for 30 days under Indian DPDP provisions. Re-enter your password to proceed.
+              </p>
+              
+              <div className="aura-input-group">
+                <label className="aura-input-label">Password</label>
+                <input 
+                  required 
+                  type="password" 
+                  className="aura-input" 
+                  placeholder="Enter password"
+                  value={deletePassword} 
+                  onChange={e => setDeletePassword(e.target.value)}
+                />
+              </div>
+
+              {deleteError && (
+                <div style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '8px' }}>
+                  {deleteError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px', justifyContent: 'flex-end' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowDeleteModal(false); setDeletePassword(''); setDeleteError(''); }} 
+                  className="aura-btn aura-btn-secondary aura-btn-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleDeleteAccountSubmit} 
+                  className="aura-btn aura-btn-danger aura-btn-sm"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   };
@@ -2272,6 +2741,8 @@ export default function App() {
   // ----------------------------------------------------
   const renderView = () => {
     switch (currentView) {
+      case 'loading':
+        return <LunarLoader />;
       case 'landing':
         return <LandingPage/>;
       case 'login':
@@ -2281,7 +2752,24 @@ export default function App() {
       case 'onboarding':
         return <OnboardingSurvey/>;
       case 'dashboard':
-        return <PatientDashboard/>;
+        return (
+          <PatientDashboard
+            user={user}
+            dashboardData={dashboardData}
+            weeklyData={weeklyData}
+            redFlagAlert={dashboardData?.redFlagAlert}
+            redFlagMessage={dashboardData?.redFlagMessage}
+            pendingOtps={pendingOtps}
+            token={token}
+            API_BASE={API_BASE}
+            handleQuickLog={handleQuickLog}
+            handleRoutineToggle={handleRoutineToggle}
+            handleOtpAction={handleOtpAction}
+            setCurrentView={setCurrentView}
+            showToast={showToast}
+            loadPatientDashboard={loadPatientDashboard}
+          />
+        );
       case 'luna':
         return <LunaChat token={token} API_BASE={API_BASE} user={user} dashboardData={dashboardData} showToast={showToast} handleQuickLog={handleQuickLog} />;
       case 'timeline':
@@ -2305,8 +2793,24 @@ export default function App() {
     }
   };
 
+  const userProfileWidget = user ? (
+    <div className="aura-sidebar-profile">
+      {user.profileImage ? (
+        <img src={user.profileImage} alt={user.fullName} />
+      ) : (
+        <div className="aura-sidebar-profile-avatar">
+          {user.fullName.charAt(0).toUpperCase()}
+        </div>
+      )}
+      <div className="aura-sidebar-profile-info">
+        <span className="aura-sidebar-profile-name">{user.fullName}</span>
+        <span className="aura-sidebar-profile-role">{user.userType}</span>
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <div className="ambient-morning" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="aura-app-layout ambient-morning">
       
       {/* Toast Notifications */}
       {toast && (
@@ -2316,44 +2820,84 @@ export default function App() {
         </div>
       )}
 
-      {/* Global Header */}
-      <header className="aura-header">
-        <div className="aura-container aura-header-inner">
-          <a onClick={() => { if (user) { if (user.userType === 'patient') setCurrentView('dashboard'); else if (user.userType === 'admin') setCurrentView('admin'); else setCurrentView('sharing'); } else { setCurrentView('landing'); } }} className="aura-logo" style={{ cursor: 'pointer' }}>
-            <div className="aura-logo-icon">A</div>
-            <span>Aura Health</span>
-          </a>
-          
-          {renderNav()}
+      {/* Vertical Sidebar navigation for logged-in users */}
+      {user && (
+        <aside className={`aura-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`} style={{ position: 'relative' }}>
+          <button 
+            onClick={toggleSidebar}
+            className="aura-sidebar-toggle-btn"
+            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronRight size={14}/> : <ChevronLeft size={14}/>}
+          </button>
 
-          {!user && (
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setCurrentView('login')} className="aura-btn aura-btn-secondary aura-btn-sm">Login</button>
-              <button onClick={() => setCurrentView('register')} className="aura-btn aura-btn-primary aura-btn-sm">Get Started</button>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Main Container Content */}
-      <main className="aura-container" style={{ flexGrow: 1, padding: '32px 16px' }}>
-        {renderView()}
-      </main>
-
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--color-border)', padding: '24px 0', background: 'var(--color-surface)', fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-        <div className="aura-container">
-          <p>© 2026 Aura Health. All rights reserved. Compliant under provisions of India's DPDP Act.</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px' }}>
-            <a style={{ color: 'inherit', textDecoration: 'none' }} href="#">Privacy Policy</a>
-            <span>•</span>
-            <a style={{ color: 'inherit', textDecoration: 'none' }} href="#">Terms of Service</a>
-            <span>•</span>
-            <a style={{ color: 'inherit', textDecoration: 'none' }} href="#">Grievance Redressal Officer Contact</a>
+          <div 
+            onClick={() => {
+              if (user.userType === 'patient') setCurrentView('dashboard');
+              else if (user.userType === 'admin') setCurrentView('admin');
+              else setCurrentView('sharing');
+            }} 
+            className="aura-sidebar-logo"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+          >
+            {sidebarCollapsed ? (
+              <img src="/logo.png" alt="HerRhythm" style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }} />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img src="/logo.png" alt="HerRhythm Symbol" style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }} />
+                <span style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-primary-dark)', fontFamily: 'var(--font-display)' }}>HerRhythm</span>
+              </div>
+            )}
           </div>
-        </div>
-      </footer>
 
+          <nav className="aura-sidebar-nav">
+            {renderNav()}
+          </nav>
+
+          <div className="aura-sidebar-footer">
+            {userProfileWidget}
+            <button onClick={handleLogout} className="aura-btn aura-btn-secondary aura-btn-sm" style={{ width: '100%', justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
+              <LogOut size={13}/> <span style={{ marginLeft: '8px' }}>Logout</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Main Content Area */}
+      <div className={`aura-main-content-wrapper ${user ? (sidebarCollapsed ? 'sidebar-collapsed' : '') : 'no-sidebar'}`}>
+        {/* Top Header for Guests Only */}
+        {!user && (
+          <header className="aura-header">
+            <div className="aura-container aura-header-inner">
+              <a onClick={() => setCurrentView('landing')} className="aura-logo" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img src="/logo.png" alt="HerRhythm Symbol" style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--color-border)' }} />
+                <span style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-primary-dark)', fontFamily: 'var(--font-display)' }}>HerRhythm</span>
+              </a>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={() => setCurrentView('login')} className="aura-btn aura-btn-secondary aura-btn-sm">Login</button>
+                <button onClick={() => setCurrentView('register')} className="aura-btn aura-btn-primary aura-btn-sm">Get Started</button>
+              </div>
+            </div>
+          </header>
+        )}
+
+        <main style={{ flexGrow: 1, padding: '32px 24px', width: '100%', boxSizing: 'border-box' }}>
+          {renderView()}
+        </main>
+
+        <footer style={{ borderTop: '1px solid var(--color-border)', padding: '24px 0', background: 'var(--color-surface)', fontSize: '13px', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 'auto' }}>
+          <div className="aura-container">
+            <p>© 2026 HerRhythm. All rights reserved. Compliant under provisions of India's DPDP Act.</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px', flexWrap: 'wrap' }}>
+              <a style={{ color: 'inherit', textDecoration: 'none' }} href="#">Privacy Policy</a>
+              <span>•</span>
+              <a style={{ color: 'inherit', textDecoration: 'none' }} href="#">Terms of Service</a>
+              <span>•</span>
+              <a style={{ color: 'inherit', textDecoration: 'none' }} href="#">Grievance Redressal Officer Contact</a>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

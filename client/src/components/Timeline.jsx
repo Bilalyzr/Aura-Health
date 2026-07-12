@@ -25,19 +25,19 @@ function TypeIcon({ type, size = 14, color }) {
 // Theme-aligned color map for log types (no emojis)
 // ─────────────────────────────────────────────────────────
 const THEME = {
-  hydration: { color: 'var(--color-primary)',     light: 'var(--color-border)',       label: 'Hydration' },
-  pain:      { color: 'var(--color-error)',        light: '#FDECEC',                  label: 'Pain'      },
-  mood:      { color: 'var(--color-accent)',       light: 'var(--color-accent-light)', label: 'Mood'      },
-  exercise:  { color: 'var(--color-success)',      light: '#E8F5EE',                  label: 'Exercise'  },
-  cycle:     { color: 'var(--color-error)',        light: '#FDECEC',                  label: 'Cycle'     },
-  symptom:   { color: 'var(--color-warning)',      light: '#FDF1E6',                  label: 'Symptom'   },
-  leave:     { color: 'var(--color-primary-dark)', light: 'var(--color-accent-light)', label: 'Leave'    },
+  hydration: { color: 'var(--color-primary)',     light: 'color-mix(in srgb, var(--color-primary) 12%, transparent)', label: 'Hydration' },
+  pain:      { color: 'var(--color-error)',        light: 'color-mix(in srgb, var(--color-error) 12%, transparent)',   label: 'Pain'      },
+  mood:      { color: '#8A7090',                   light: 'rgba(138, 112, 144, 0.15)',                 label: 'Mood'      },
+  exercise:  { color: 'var(--color-success)',      light: 'color-mix(in srgb, var(--color-success) 12%, transparent)', label: 'Exercise'  },
+  cycle:     { color: 'var(--color-error)',        light: 'color-mix(in srgb, var(--color-error) 12%, transparent)',   label: 'Cycle'     },
+  symptom:   { color: 'var(--color-warning)',      light: 'color-mix(in srgb, var(--color-warning) 12%, transparent)', label: 'Symptom'   },
+  leave:     { color: 'var(--color-primary-dark)', light: 'color-mix(in srgb, var(--color-primary-dark) 12%, transparent)', label: 'Leave'    },
 };
 
 // ─────────────────────────────────────────────────────────
 // Reusable SVG Bar Chart
 // ─────────────────────────────────────────────────────────
-function BarChart({ data, themeColor, accentColor, emptyColor, max, unit, nullLabel = '—' }) {
+function BarChart({ data, themeColor, emptyColor, max, unit, nullLabel = '—' }) {
   const [hovered, setHovered] = useState(null);
   const BAR_W   = 28;
   const SPACING = 44;
@@ -64,7 +64,7 @@ function BarChart({ data, themeColor, accentColor, emptyColor, max, unit, nullLa
         const isToday = idx === data.length - 1;
         const fill    = !hasData
           ? (emptyColor || 'var(--color-border)')
-          : isToday ? themeColor : accentColor;
+          : themeColor;
 
         return (
           <g key={idx}>
@@ -75,9 +75,16 @@ function BarChart({ data, themeColor, accentColor, emptyColor, max, unit, nullLa
               onMouseEnter={() => setHovered(idx)}
               onMouseLeave={() => setHovered(null)}
             />
-            {/* Top accent cap on today's bar */}
+            {/* Outline highlight for today's active bar */}
             {isToday && hasData && (
-              <rect x={x} y={y} width={BAR_W} height={4} fill={themeColor} rx="2" opacity="0.9" />
+              <rect 
+                x={x - 1.5} y={y - 1.5} 
+                width={BAR_W + 3} height={height + 3} 
+                fill="none" 
+                stroke="var(--color-primary-dark)" 
+                strokeWidth="1.5" 
+                rx="6.5" 
+              />
             )}
             {/* Hover tooltip */}
             {hovered === idx && (
@@ -246,6 +253,21 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
 
   return (
     <div className="anim-slide-in">
+      <style>{`
+        .timeline-event-card:hover {
+          transform: translateX(4px);
+          box-shadow: 0 4px 12px rgba(61, 139, 147, 0.08);
+          border-color: var(--color-primary-glow) !important;
+        }
+        .timeline-chart-card {
+          transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .timeline-chart-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(61, 139, 147, 0.12) !important;
+          border-color: var(--color-primary-glow) !important;
+        }
+      `}</style>
 
       {/* ── Page header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
@@ -288,23 +310,22 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
 
         {/* 1 — Hydration */}
-        <div style={card}>
+        <div style={card} className="timeline-chart-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <IconBadge bg="var(--color-surface)">
+              <IconBadge bg="color-mix(in srgb, var(--color-primary) 12%, transparent)">
                 <Droplets size={15} color="var(--color-primary)" strokeWidth={2} />
               </IconBadge>
               <strong style={{ fontSize: 13, color: 'var(--color-primary-dark)' }}>Daily Water Intake</strong>
             </div>
             <TodayPill
               value={`${weeklyData[6]?.hydration || 0} ml`}
-              bg="var(--color-surface)" color="var(--color-primary)" border="var(--color-border)"
+              bg="color-mix(in srgb, var(--color-primary) 12%, transparent)" color="var(--color-primary)" border="color-mix(in srgb, var(--color-primary) 30%, transparent)"
             />
           </div>
           {loadingWeekly ? <Skeleton /> : (
             <BarChart data={hydrationData} themeColor="var(--color-primary)"
-              accentColor="var(--color-accent-light)" emptyColor="var(--color-border)"
-              max={3000} unit="ml" nullLabel="0 ml" />
+              emptyColor="var(--color-border)" max={3000} unit="ml" nullLabel="0 ml" />
           )}
           <p style={{ textAlign: 'right', fontSize: 10, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
             Target: 3,000 ml / day
@@ -312,23 +333,22 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
         </div>
 
         {/* 2 — Pain */}
-        <div style={card}>
+        <div style={card} className="timeline-chart-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <IconBadge bg="#FDECEC">
+              <IconBadge bg="color-mix(in srgb, var(--color-error) 12%, transparent)">
                 <Zap size={15} color="var(--color-error)" strokeWidth={2} />
               </IconBadge>
               <strong style={{ fontSize: 13, color: 'var(--color-primary-dark)' }}>Peak Pain Intensity</strong>
             </div>
             <TodayPill
               value={weeklyData[6]?.pain != null ? `${weeklyData[6].pain}/10` : 'None'}
-              bg="#FDECEC" color="var(--color-error)" border="#F5BFBD"
+              bg="color-mix(in srgb, var(--color-error) 12%, transparent)" color="var(--color-error)" border="color-mix(in srgb, var(--color-error) 30%, transparent)"
             />
           </div>
           {loadingWeekly ? <Skeleton /> : (
             <BarChart data={painData} themeColor="var(--color-error)"
-              accentColor="#F5BFBD" emptyColor="var(--color-border)"
-              max={10} unit="/10" nullLabel="None" />
+              emptyColor="var(--color-border)" max={10} unit="/10" nullLabel="None" />
           )}
           <p style={{ textAlign: 'right', fontSize: 10, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
             Scale: 0 (none) → 10 (severe)
@@ -336,23 +356,22 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
         </div>
 
         {/* 3 — Mood */}
-        <div style={card}>
+        <div style={card} className="timeline-chart-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <IconBadge bg="var(--color-accent-light)">
+              <IconBadge bg="color-mix(in srgb, var(--color-accent) 15%, transparent)">
                 <Smile size={15} color="var(--color-accent)" strokeWidth={2} />
               </IconBadge>
               <strong style={{ fontSize: 13, color: 'var(--color-primary-dark)' }}>Avg. Mood Rating</strong>
             </div>
             <TodayPill
               value={weeklyData[6]?.mood != null ? `${weeklyData[6].mood}/5` : 'None'}
-              bg="var(--color-accent-light)" color="var(--color-primary)" border="var(--color-border)"
+              bg="rgba(138, 112, 144, 0.12)" color="#8A7090" border="rgba(138, 112, 144, 0.3)"
             />
           </div>
           {loadingWeekly ? <Skeleton /> : (
-            <BarChart data={moodData} themeColor="var(--color-accent)"
-              accentColor="var(--color-border)" emptyColor="var(--color-border)"
-              max={5} unit="/5" nullLabel="None" />
+            <BarChart data={moodData} themeColor="#8A7090"
+              emptyColor="var(--color-border)" max={5} unit="/5" nullLabel="None" />
           )}
           <p style={{ textAlign: 'right', fontSize: 10, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
             1 (very low) → 5 (very high)
@@ -360,23 +379,22 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
         </div>
 
         {/* 4 — Exercise */}
-        <div style={card}>
+        <div style={card} className="timeline-chart-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <IconBadge bg="#E8F5EE">
+              <IconBadge bg="color-mix(in srgb, var(--color-success) 12%, transparent)">
                 <Dumbbell size={15} color="var(--color-success)" strokeWidth={2} />
               </IconBadge>
               <strong style={{ fontSize: 13, color: 'var(--color-primary-dark)' }}>Exercise Minutes</strong>
             </div>
             <TodayPill
               value={`${weeklyData[6]?.exercise || 0} min`}
-              bg="#E8F5EE" color="var(--color-success)" border="#B2DFCB"
+              bg="color-mix(in srgb, var(--color-success) 12%, transparent)" color="var(--color-success)" border="color-mix(in srgb, var(--color-success) 30%, transparent)"
             />
           </div>
           {loadingWeekly ? <Skeleton /> : (
             <BarChart data={exerciseData} themeColor="var(--color-success)"
-              accentColor="#B2DFCB" emptyColor="var(--color-border)"
-              max={90} unit=" min" nullLabel="0 min" />
+              emptyColor="var(--color-border)" max={90} unit=" min" nullLabel="0 min" />
           )}
           <p style={{ textAlign: 'right', fontSize: 10, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
             Target: 30 min / day
@@ -446,7 +464,7 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
                 onClick={() => setTypeFilter(active ? 'all' : t)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
-                  fontSize: 11, cursor: 'pointer', padding: '5px 11px', borderRadius: 20,
+                  fontSize: 11, padding: '5px 11px', borderRadius: 20,
                   background: active ? cfg.color : 'var(--color-surface)',
                   color: active ? 'var(--color-white)' : 'var(--color-text-muted)',
                   border: `1px solid ${active ? cfg.color : 'var(--color-border)'}`,
@@ -470,9 +488,9 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
         ) : (
           <div style={{
             position: 'relative',
-            borderLeft: '2px solid var(--color-border)',
-            paddingLeft: 24, marginLeft: 10,
-            display: 'flex', flexDirection: 'column', gap: 18
+            borderLeft: '2px dashed var(--color-border)',
+            paddingLeft: 28, marginLeft: 20,
+            display: 'flex', flexDirection: 'column', gap: 20
           }}>
             {filtered.map((evt, idx) => {
               const cfg    = THEME[evt.type] || THEME.hydration;
@@ -480,25 +498,34 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
               const evtDate = new Date(evt.date);
 
               return (
-                <div key={idx} style={{ position: 'relative' }}>
-
+                <div key={idx} className="timeline-event-card" style={{
+                  position: 'relative',
+                  padding: '14px 16px 14px 20px',
+                  borderRadius: '12px',
+                  background: 'var(--color-white)',
+                  border: '1px solid var(--color-border)',
+                  borderLeft: `4px solid ${cfg.color}`,
+                  marginLeft: '8px',
+                  transition: 'all 200ms ease'
+                }}>
                   {/* Timeline dot with vector icon */}
                   <div style={{
-                    position: 'absolute', left: -33, top: 2,
-                    width: 20, height: 20, borderRadius: '50%',
+                    position: 'absolute', left: -39, top: '50%', transform: 'translateY(-50%)',
+                    width: 22, height: 22, borderRadius: '50%',
                     background: isLive ? cfg.color : 'var(--color-white)',
                     border: `2px solid ${cfg.color}`,
-                    boxShadow: isLive ? `0 0 0 4px ${cfg.light}` : '0 1px 3px rgba(46,34,51,0.12)',
+                    boxShadow: isLive ? `0 0 0 4px ${cfg.light}` : '0 1px 3px rgba(0,0,0,0.08)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'box-shadow 400ms'
+                    transition: 'all 200ms',
+                    zIndex: 2
                   }}>
                     <TypeIcon type={evt.type} size={10} color={isLive ? 'white' : cfg.color} />
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: 13, color: 'var(--color-primary-dark)' }}>
+                        <strong style={{ fontSize: '13px', color: 'var(--color-primary-dark)', fontWeight: '700' }}>
                           {evt.title}
                         </strong>
                         {isLive && (
@@ -510,16 +537,16 @@ export default function Timeline({ user, timelineEvents, dashboardData, token, A
                           }}>LIVE</span>
                         )}
                       </div>
-                      <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '2px 0 0', lineHeight: 1.4 }}>
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', margin: '4px 0 0', lineHeight: '1.45' }}>
                         {evt.desc}
                       </p>
                     </div>
 
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-primary)', fontWeight: '600', whiteSpace: 'nowrap' }}>
                         {evtDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--color-border-focus)' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                         {evtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>

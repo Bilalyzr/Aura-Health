@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
@@ -15,7 +17,7 @@ import AuditLog from './models/AuditLog.js';
 import OtpRequest from './models/OtpRequest.js';
 import { authenticateToken, requireRole } from './middleware/auth.js';
 import { generateDailyRoutine, getCycleDayAndPhase } from './ai/ruleEngine.js';
-import { callLLM } from './ai/llmClient.js';
+import { callLLM, callLLMStream } from './ai/llmClient.js';
 
 // Partner Room Messages
 const partnerMessageSchema = new mongoose.Schema({
@@ -46,6 +48,17 @@ const partnerOrderSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const PartnerOrder = mongoose.models.PartnerOrder || mongoose.model('PartnerOrder', partnerOrderSchema);
+
+// Partner Nudges
+const partnerNudgeSchema = new mongoose.Schema({
+  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  type: { type: String, required: true },
+  message: { type: String, required: true },
+  read: { type: Boolean, default: false }
+}, { timestamps: true });
+
+const PartnerNudge = mongoose.models.PartnerNudge || mongoose.model('PartnerNudge', partnerNudgeSchema);
 
 dotenv.config();
 
@@ -93,8 +106,17 @@ async function generateUniqueShareId() {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, fullName, dateOfBirth, userType } = req.body;
+
+    // Validate required fields up front so missing data returns 400, not a 500
+    if (!email || !password || !fullName || !dateOfBirth) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_FIELDS', message: 'Email, password, full name, and date of birth are required.' }
+      });
+    }
+
     const normalizedEmail = String(email).trim().toLowerCase();
-    
+
     // Check duplicate
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
@@ -283,11 +305,24 @@ app.get('/api/users/me', authenticateToken, async (req, res) => {
 // POST /api/onboarding/survey
 app.post('/api/onboarding/survey', authenticateToken, async (req, res) => {
   try {
-    const { conditionTags, cycleStartDate } = req.body;
+    const { 
+      conditionTags, 
+      cycleStartDate, 
+      lifeStage, 
+      surveyAnswers, 
+      consentAggregated, 
+      locale, 
+      accessibilityAccommodations 
+    } = req.body;
 
-    // Update user profile with condition tags
+    // Update user profile with complete survey data
     const user = req.user;
     user.conditionTags = conditionTags || [];
+    user.lifeStage = lifeStage || '';
+    user.surveyAnswers = surveyAnswers || {};
+    user.consentAggregated = !!consentAggregated;
+    user.locale = locale || 'en';
+    user.accessibilityAccommodations = accessibilityAccommodations || [];
     await user.save();
 
     // If cycle start date is provided, initialize a cycle entry
@@ -327,6 +362,71 @@ app.post('/api/onboarding/survey', authenticateToken, async (req, res) => {
       routine,
       phase: ruleOutput.phase,
       cycleDay: ruleOutput.cycleDay
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SERVER_ERROR', message: error.message }
+    });
+  }
+});
+
+// POST /api/telemetry/sync
+app.post('/api/telemetry/sync', authenticateToken, async (req, res) => {
+  try {
+    const { sleepHours, sleepQuality, basalBodyTemp, hrv, source } = req.body;
+    const user = req.user;
+
+    // Save telemetry log
+    user.telemetryLogs.push({
+      sleepHours: Number(sleepHours),
+      sleepQuality,
+      basalBodyTemp: Number(basalBodyTemp),
+      hrv: Number(hrv),
+      source,
+      timestamp: new Date()
+    });
+
+    // Limit telemetry logs to last 30 entries to prevent document bloat
+    if (user.telemetryLogs.length > 30) {
+      user.telemetryLogs.shift();
+    }
+
+    await user.save();
+
+    // Fetch cycle phase for daily routine update
+    const cycle = await Cycle.findOne({ userId: user._id }).sort({ startDate: -1 });
+    
+    // Fetch recent symptom logs to check for consecutive pain / red flags
+    const recentLogs = await Log.find({ 
+      userId: user._id, 
+      date: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } 
+    }).sort({ date: -1 });
+
+    // Trigger routine generator
+    const ruleOutput = generateDailyRoutine(user, cycle, recentLogs);
+    
+    // Save routine
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Remove existing routine if any
+    await Routine.deleteOne({ userId: user._id, date: today });
+    
+    const routine = await Routine.create({
+      userId: user._id,
+      date: today,
+      items: ruleOutput.items,
+      generatedBy: 'rule-engine-v1.0-telemetry'
+    });
+
+    res.json({
+      success: true,
+      user,
+      routine,
+      phase: ruleOutput.phase,
+      cycleDay: ruleOutput.cycleDay,
+      telemetry: user.telemetryLogs[user.telemetryLogs.length - 1]
     });
   } catch (error) {
     res.status(500).json({
@@ -584,11 +684,25 @@ app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
       });
     }
 
+    // Average cycle length from the gaps between consecutive period start dates
+    const allCycles = await Cycle.find({ userId: user._id }).sort({ startDate: 1 });
+    let avgCycleLength = 28;
+    if (allCycles.length >= 2) {
+      let totalGap = 0;
+      for (let i = 1; i < allCycles.length; i++) {
+        totalGap += Math.round((new Date(allCycles[i].startDate) - new Date(allCycles[i - 1].startDate)) / (1000 * 60 * 60 * 24));
+      }
+      const avg = Math.round(totalGap / (allCycles.length - 1));
+      if (avg > 0) avgCycleLength = avg;
+    }
+
     res.json({
       success: true,
       cycleDay: day,
       phase,
       routine,
+      avgCycleLength,
+      symptomsToday: symptomLogs.length,
       logs: {
         mood: moodLog ? moodLog.value : null,
         hydration: totalHydration,
@@ -986,6 +1100,12 @@ app.get('/api/shared/patient/:patientId', authenticateToken, async (req, res) =>
     }
 
     const patient = await User.findById(req.params.patientId);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'PATIENT_NOT_FOUND', message: 'The linked patient account no longer exists.' }
+      });
+    }
     const cycle = await Cycle.findOne({ userId: req.params.patientId }).sort({ startDate: -1 });
 
     const sharedData = {
@@ -1153,55 +1273,113 @@ app.get('/api/admin/users', authenticateToken, requireRole(['admin']), async (re
 // NEW MODULES: LUNA AI, TIMELINE, MENSTRUAL LEAVE, PARTNER CHAT
 // ----------------------------------------------------
 
+// Compute the weightage score programmatically based on message context
+const computeWeightage = (message) => {
+  const msgLower = message.toLowerCase();
+  if (msgLower.includes('pain') || msgLower.includes('severe') || msgLower.includes('faint') || msgLower.includes('bleed') || msgLower.includes('emergency') || msgLower.includes('accident')) {
+    return 8;
+  } else if (msgLower.includes('pcos') || msgLower.includes('endo') || msgLower.includes('pmdd') || msgLower.includes('insulin') || msgLower.includes('cramp') || msgLower.includes('mood') || msgLower.includes('anxiety')) {
+    return 6;
+  } else if (msgLower.includes('period') || msgLower.includes('cycle') || msgLower.includes('ovulat') || msgLower.includes('fertil')) {
+    return 4;
+  }
+  return 3;
+};
+
+// Deterministic rule-based reply used when no LLM is configured/available
+const ruleBasedReply = (message, phase, day) => {
+  const lowercaseMsg = message.toLowerCase();
+  if (lowercaseMsg.includes('pcos') || lowercaseMsg.includes('insulin') || lowercaseMsg.includes('weight') || lowercaseMsg.includes('hair')) {
+    return `Focus on stabilizing insulin and reducing androgens by using spearmint tea twice daily, opting for low-glycemic carbs like oats, and engaging in light strength training.`;
+  } else if (lowercaseMsg.includes('endo') || lowercaseMsg.includes('pain') || lowercaseMsg.includes('cramp') || lowercaseMsg.includes('flare')) {
+    return `For endometriosis discomfort, use a warm pelvic compress, do gentle pelvic stretches, and take magnesium glycinate. Seek immediate care if pain rises above an 8/10.`;
+  } else if (lowercaseMsg.includes('pmdd') || lowercaseMsg.includes('mood') || lowercaseMsg.includes('anxiety') || lowercaseMsg.includes('sad') || lowercaseMsg.includes('depress')) {
+    return `During your luteal phase, saffron extract (30mg) and evening complex carbs can help stabilize mood and serotonin levels. Gratitude journaling helps map intense luteal swings.`;
+  } else if (lowercaseMsg.includes('period') || lowercaseMsg.includes('cycle') || lowercaseMsg.includes('ovulat') || lowercaseMsg.includes('fertil')) {
+    return `You are in your ${phase.toUpperCase()} phase (Day ${day}). ${phase === 'follicular' || phase === 'ovulatory' ? 'Estrogen is rising, boosting your energy and stamina.' : 'Estrogen is low, so rest and gentle movement are key right now.'}`;
+  } else if (lowercaseMsg.includes('agent') || lowercaseMsg.includes('capability') || lowercaseMsg.includes('tool')) {
+    return `I operate as an AI agent running wellness diagnostics within strict safety boundaries to verify health outcomes.`;
+  } else if (lowercaseMsg.includes('prompt') || lowercaseMsg.includes('instruction')) {
+    return `My conversational outputs are formatted using system prompts that load active conditions and cycle phases to prevent diagnoses.`;
+  } else if (lowercaseMsg.includes('rag') || lowercaseMsg.includes('retrieval') || lowercaseMsg.includes('vector')) {
+    return `My retrieval pipeline scans clinical guidelines and matches user queries to vector space wellness articles.`;
+  } else if (lowercaseMsg.includes('workflow') || lowercaseMsg.includes('creator') || lowercaseMsg.includes('stack')) {
+    return `My workflow engine checks target stacks and executes single-responsibility steps before verifying output correctness.`;
+  }
+  return `I hear you. Tell me more about what you're experiencing. Regular logging helps me customize your daily routine recommendations.`;
+};
+
+const stripWeightageText = (text) =>
+  (text || '').replace(/⚖️?\s*(?:Weightage|weightage|Clinical Weightage):\s*[^\n]+/gi, '').trim();
+
 // POST /api/ai/chat
 app.post('/api/ai/chat', authenticateToken, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, stream } = req.body;
     const user = req.user;
-    
+
     // Fetch cycle phase
     const cycle = await Cycle.findOne({ userId: user._id }).sort({ startDate: -1 });
     const { phase, day } = getCycleDayAndPhase(cycle?.startDate);
 
-    let response = null;
-    try {
-      const systemInstruction = `You are Luna, a clinical assistant companion for Aura Health. Keep responses warm, concise, and focused on reproductive health and wellness. Defer diagnostics or medical treatments to doctors. If the user mentions severe pain (8+/10), fainting, or excessive bleeding, recommend consulting a healthcare provider immediately.
+    const systemInstruction = `You are Luna, a clinical assistant companion for Aura Health. Keep responses simple, crisp, and extremely brief (maximum of 1-2 sentences). Do not write multiple paragraphs. Defer diagnostics or medical treatments to doctors.
 User Profile:
 - Name: ${user.fullName}
-- Conditions: ${user.conditionTags.join(', ').toUpperCase() || 'None'}
+- Conditions: ${(user.conditionTags || []).join(', ').toUpperCase() || 'None'}
 - Cycle: Day ${day} (${phase.toUpperCase()} phase)`;
-      
+
+    const weightage = computeWeightage(message);
+
+    // ── Streaming path (Server-Sent Events) ──
+    if (stream) {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+      });
+      res.flushHeaders?.();
+
+      // Once headers are sent we can no longer fall through to the JSON error
+      // handler below (that would throw ERR_HTTP_HEADERS_SENT), so handle any
+      // failure here by closing the SSE stream cleanly.
+      try {
+        const streamed = await callLLMStream(message, systemInstruction, (delta) => {
+          res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+        });
+
+        // Fall back to a rule-based reply if the model produced nothing.
+        if (!streamed) {
+          const fallback = ruleBasedReply(message, phase, day);
+          res.write(`data: ${JSON.stringify({ delta: fallback })}\n\n`);
+        }
+
+        res.write(`data: ${JSON.stringify({ done: true, weightage })}\n\n`);
+      } catch (streamErr) {
+        console.error('SSE streaming error:', streamErr);
+        // Best-effort: hand the client a usable reply and close.
+        const fallback = ruleBasedReply(message, phase, day);
+        res.write(`data: ${JSON.stringify({ delta: fallback })}\n\n`);
+        res.write(`data: ${JSON.stringify({ done: true, weightage })}\n\n`);
+      }
+      return res.end();
+    }
+
+    // ── Non-streaming path (JSON) ──
+    let response = null;
+    try {
       response = await callLLM(message, systemInstruction);
     } catch (err) {
       console.error("LLM integration error:", err);
     }
 
     if (!response) {
-      const lowercaseMsg = message.toLowerCase();
-      response = `Hello ${user.fullName}! I am Luna, your Aura Health companion. I am here to help you manage your hormonal well-being. `;
-
-      if (lowercaseMsg.includes('pcos') || lowercaseMsg.includes('insulin') || lowercaseMsg.includes('weight') || lowercaseMsg.includes('hair')) {
-        response += "Regarding PCOS management, key areas to focus on are stabilizing insulin and managing androgen levels. I recommend incorporating Spearmint Tea twice daily to help reduce excess androgens, and opting for low-glycemic complex carbohydrates (like oats, brown rice, lentils) to smooth out glucose spikes. Strength training (20-30 mins) is also highly effective for improving muscle insulin sensitivity.";
-      } else if (lowercaseMsg.includes('endo') || lowercaseMsg.includes('pain') || lowercaseMsg.includes('cramp') || lowercaseMsg.includes('flare')) {
-        response += "For Endometriosis discomfort, pelvic blood circulation and pelvic floor relaxation are vital. I suggest using a warm pelvic castor oil pack, gentle stretches targeting pelvic release, and taking a magnesium glycinate supplement to naturally soothe smooth muscle spasms. If your pain spikes above an 8/10, make sure to seek medical support.";
-      } else if (lowercaseMsg.includes('pmdd') || lowercaseMsg.includes('mood') || lowercaseMsg.includes('anxiety') || lowercaseMsg.includes('sad') || lowercaseMsg.includes('depress')) {
-        response += "With PMDD or luteal mood swings, your body is highly sensitive to progesterone changes. During your luteal phase, prioritize Saffron extract (30mg) which clinically supports mood, engage in simple gratitude journaling, and ensure you take complex carbs at night to naturally boost serotonin levels.";
-      } else if (lowercaseMsg.includes('period') || lowercaseMsg.includes('cycle') || lowercaseMsg.includes('ovulat') || lowercaseMsg.includes('fertil')) {
-        response += `Currently, you are on Day ${day} in your ${phase.toUpperCase()} phase. During this time, your body's estrogen is ${phase === 'follicular' || phase === 'ovulatory' ? 'rising, giving you extra energy—perfect for cardio and intense tasks' : 'lowering, which can cause fatigue. Focus on low-impact exercise and warm foods'}.`;
-      } else if (lowercaseMsg.includes('agent') || lowercaseMsg.includes('capability') || lowercaseMsg.includes('tool')) {
-        response += "As an AI Agent, I execute tasks within clear guardrails (safety boundaries, graceful error recovery, and logging decisions for audit trails). I operate by: (1) Understanding your patient profile & lifecycle constraints, (2) Analyzing telemetry logs, (3) Generating cohort-aligned wellness interventions, and (4) Verifying outcomes. Let me know if you would like me to detail these agentic steps!";
-      } else if (lowercaseMsg.includes('prompt') || lowercaseMsg.includes('instruction')) {
-        response += "My conversational engine is structured using advanced Prompt Engineering. My instructions define my Role (Clinical Assistant Companion), Context (incorporating your active conditions like PCOS/PMDD and cycle phase), instructions for unbundled consent safety, and strict structure formatting. This ensures I never diagnose but always guide you safely.";
-      } else if (lowercaseMsg.includes('rag') || lowercaseMsg.includes('retrieval') || lowercaseMsg.includes('vector')) {
-        response += "My Retrieval-Augmented Generation (RAG) pipeline matches your queries against a structured wellness database. When you log or search, my loader chunk-splits medical text guidelines, embeds them into high-dimensional vector spaces, and queries the vector store to append exact research citations (like spearmint tea or castor oil pack trials) straight into my system prompt context.";
-      } else if (lowercaseMsg.includes('workflow') || lowercaseMsg.includes('creator') || lowercaseMsg.includes('stack')) {
-        response += "In the Antigravity architecture, a workflow follows a stack-agnostic, question-driven philosophy. Every workflow must: (1) Detect the workspace stack config, (2) Ask clarifying questions to resolve ambiguities, (3) Perform core single-responsibility steps (without hardcoding frameworks), and (4) Verify implementation success. These workflows are registered in the global registry.";
-      } else {
-        response += `I hear you. To customize my response, could you tell me more about your specific symptoms? Since your profile is tagged with [${user.conditionTags.join(', ').toUpperCase()}], I highly recommend maintaining a consistent log of your pain, hydration, and mood, which helps me compile precise guidelines for you.`;
-      }
+      response = ruleBasedReply(message, phase, day);
     }
 
-    res.json({ success: true, response });
+    response = stripWeightageText(response);
+
+    res.json({ success: true, response, weightage });
   } catch (error) {
     res.status(500).json({ success: false, error: { message: error.message } });
   }
@@ -1360,12 +1538,22 @@ app.post('/api/leave', authenticateToken, async (req, res) => {
   }
 });
 
+// Resolve the Partner Room counterparty by role: a patient messages their
+// linked 'partner'; a partner messages their linked 'patient'. Using
+// linkedAccounts[0] blindly could route messages to a doctor/guardian instead.
+const resolvePartnerLink = (u) => {
+  const accounts = u.linkedAccounts || [];
+  const wanted = u.userType === 'patient' ? 'partner' : 'patient';
+  const link = accounts.find(l => l.relationship === wanted);
+  return link?.userId?._id || link?.userId || null;
+};
+
 // GET /api/partner/messages
 app.get('/api/partner/messages', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
     // Find linked partner/patient ID
-    const partnerId = req.user.linkedAccounts[0]?.userId;
+    const partnerId = resolvePartnerLink(req.user);
     if (!partnerId) {
       return res.json({ success: true, messages: [] });
     }
@@ -1387,7 +1575,7 @@ app.get('/api/partner/messages', authenticateToken, async (req, res) => {
 app.post('/api/partner/messages', authenticateToken, async (req, res) => {
   try {
     const { body } = req.body;
-    const partnerId = req.user.linkedAccounts[0]?.userId;
+    const partnerId = resolvePartnerLink(req.user);
     if (!partnerId) {
       return res.status(400).json({ success: false, message: 'No linked partner found for this account.' });
     }
@@ -1530,6 +1718,34 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/users/me
+app.delete('/api/users/me', authenticateToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, error: { message: 'Password is required for re-authentication.' } });
+    }
+    const user = await User.findById(req.user._id);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: { message: 'Invalid password. Re-authentication failed.' } });
+    }
+    user.deletedAt = new Date();
+    await user.save();
+
+    await AuditLog.create({
+      actorId: user._id,
+      action: 'user.delete',
+      targetId: user._id,
+      metadata: { dpdpErasure: true }
+    });
+
+    res.json({ success: true, message: 'Account soft-deleted. You have 30 days to recover before permanent erasure.' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: { message: error.message } });
+  }
+});
+
 // POST /api/partner/orders
 app.post('/api/partner/orders', authenticateToken, async (req, res) => {
   try {
@@ -1566,6 +1782,56 @@ app.get('/api/partner/orders', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: { message: error.message } });
   }
+});
+
+// POST /api/partner/nudges
+app.post('/api/partner/nudges', authenticateToken, async (req, res) => {
+  try {
+    const { type, message, receiverId } = req.body;
+    const senderId = req.user._id;
+
+    const nudge = await PartnerNudge.create({
+      senderId,
+      receiverId,
+      type,
+      message
+    });
+
+    res.status(201).json({ success: true, nudge });
+  } catch (error) {
+    res.status(500).json({ success: false, error: { message: error.message } });
+  }
+});
+
+// GET /api/partner/nudges
+app.get('/api/partner/nudges', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const nudges = await PartnerNudge.find({ receiverId: userId, read: false });
+    
+    if (nudges.length > 0) {
+      await PartnerNudge.updateMany({ receiverId: userId, read: false }, { $set: { read: true } });
+    }
+
+    res.json({ success: true, nudges });
+  } catch (error) {
+    res.status(500).json({ success: false, error: { message: error.message } });
+  }
+});
+
+// Serve static built files from the React client application
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientBuildPath = path.join(__dirname, '../../client/dist');
+
+app.use(express.static(clientBuildPath));
+
+// Catch-all handler for client-side routing: serve index.html for any non-API request
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
 });
 
 // Start Server

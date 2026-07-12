@@ -51,7 +51,7 @@ export default function MenstrualLeave({ user, cycles, leaveLogs, handleLogLeave
             <h4 style={{ color: 'var(--color-primary-dark)' }}>Karnataka Menstrual Leave Policy Guidelines</h4>
             <p style={{ fontSize: '13px', color: 'var(--color-text-primary)', marginTop: '6px', lineHeight: '1.5' }}>
               Under state policy frameworks, female employees are entitled to designated monthly rest leave days.
-              Aura Health implements <strong>Privacy Isolation</strong>: we validate that you are in a cycle day window matching your recorded cycle history and issue a signed verification hash. Your sensitive symptom logs, pain scales, or diagnostic details are <strong>never</strong> disclosed or shared with your employer.
+              HerRhythm implements <strong>Privacy Isolation</strong>: we validate that you are in a cycle day window matching your recorded cycle history and issue a signed verification hash. Your sensitive symptom logs, pain scales, or diagnostic details are <strong>never</strong> disclosed or shared with your employer.
             </p>
           </div>
         </div>

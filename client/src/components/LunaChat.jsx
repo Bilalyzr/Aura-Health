@@ -30,7 +30,7 @@ const MicroStretchWidget = ({ activeCards, setActiveCards }) => {
   };
 
   return (
-    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-primary)', background: '#FAF5F9', marginTop: '12px' }}>
+    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-primary)', background: 'var(--color-surface)', marginTop: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <strong style={{ color: 'var(--color-primary-dark)', fontSize: '14px' }}>
           <Activity size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }}/> Luna 2-Min MicroStretch Pacer
@@ -60,7 +60,7 @@ const HydrationBooster = ({ handleQuickLog, showToast, activeCards, setActiveCar
   };
 
   return (
-    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-accent)', background: '#FAF5F9', marginTop: '12px' }}>
+    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-accent)', background: 'var(--color-surface)', marginTop: '12px' }}>
       <strong style={{ color: 'var(--color-primary-dark)', fontSize: '14px' }}>
         <Coffee size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }}/> Luna Hydration Recommendation
       </strong>
@@ -83,6 +83,9 @@ const CalmPulse = ({ activeCards, setActiveCards }) => {
   const [tick, setTick] = useState(4);
 
   useEffect(() => {
+    // Single stable interval driven entirely by functional updaters, so the
+    // 4-3-2-1 countdown ticks at a steady 1 Hz instead of being recreated
+    // (and delayed a full second) on every phase change.
     const interval = setInterval(() => {
       setTick(t => {
         if (t === 1) {
@@ -98,10 +101,10 @@ const CalmPulse = ({ activeCards, setActiveCards }) => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [state]);
+  }, []);
 
   return (
-    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-success)', background: '#FAF5F9', marginTop: '12px', textAlign: 'center' }}>
+    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-success)', background: 'var(--color-surface)', marginTop: '12px', textAlign: 'center' }}>
       <strong style={{ color: 'var(--color-primary-dark)', fontSize: '14px', float: 'left' }}>CalmPulse Breathing Pacer</strong>
       <button onClick={() => setActiveCards(activeCards.filter(c => c !== 'breathing'))} style={{ fontSize: '12px', float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>Dismiss</button>
       <div style={{ clear: 'both', padding: '16px 0' }}>
@@ -139,7 +142,7 @@ const LogOverrideCard = ({ handleQuickLog, showToast, activeCards, setActiveCard
   };
 
   return (
-    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-warning)', background: '#FAF5F9', marginTop: '12px' }}>
+    <div className="aura-card" style={{ borderLeft: '4px solid var(--color-warning)', background: 'var(--color-surface)', marginTop: '12px' }}>
       <strong style={{ color: 'var(--color-primary-dark)', fontSize: '14px' }}>LogOverride: Fast Track Sync</strong>
       <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>Fast track check-ins to synchronize your database telemetry.</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '12px 0' }}>
@@ -169,7 +172,7 @@ const UHIDiagnosticBooking = ({ showToast, activeCards, setActiveCards }) => {
   };
 
   return (
-    <div className="aura-card" style={{ borderLeft: '4px solid #1A1321', background: '#FAF5F9', marginTop: '12px' }}>
+    <div className="aura-card" style={{ borderLeft: '4px solid #1A1321', background: 'var(--color-surface)', marginTop: '12px' }}>
       <strong style={{ color: 'var(--color-primary-dark)', fontSize: '14px' }}>
         <Compass size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }}/> UHI Referral Laboratories Booking
       </strong>
@@ -261,7 +264,7 @@ export default function LunaChat({ token, API_BASE, user, dashboardData, showToa
     const lowercaseQuery = query.toLowerCase();
     const newCards = [];
 
-    if (lowercaseQuery.includes('tired') || lowercaseQuery.includes('fatigue') || lowercaseQuery.includes('ஆಯಾಸ') || lowercaseQuery.includes('சோர்வாக')) {
+    if (lowercaseQuery.includes('tired') || lowercaseQuery.includes('fatigue') || lowercaseQuery.includes('ಆಯಾಸ') || lowercaseQuery.includes('சோர்வாக')) {
       newCards.push('stretch');
       newCards.push('override');
     }
@@ -279,8 +282,23 @@ export default function LunaChat({ token, API_BASE, user, dashboardData, showToa
       setActiveCards(prev => [...new Set([...prev, ...newCards])]);
     }
 
-    // Call Backend AI response
+    // Call Backend AI response (streamed via Server-Sent Events)
     setIsTyping(true);
+    const lunaId = `luna-${Date.now()}`;
+    let appended = false;
+
+    // Append a delta to Luna's streaming message, creating it on first token
+    const pushDelta = (delta) => {
+      if (!delta) return;
+      setMessages(prev => {
+        if (!appended) {
+          appended = true;
+          return [...prev, { id: lunaId, sender: 'luna', text: delta }];
+        }
+        return prev.map(m => m.id === lunaId ? { ...m, text: m.text + delta } : m);
+      });
+    };
+
     try {
       const res = await fetch(`${API_BASE}/ai/chat`, {
         method: 'POST',
@@ -288,22 +306,57 @@ export default function LunaChat({ token, API_BASE, user, dashboardData, showToa
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ message: query })
+        body: JSON.stringify({ message: query, stream: true })
       });
-      const data = await res.json();
-      if (data.success) {
-        setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'luna', text: data.response }]);
+
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('text/event-stream') && res.body) {
+        // Stream tokens as they arrive so the reply appears instantly.
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let firstToken = true;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let nlIndex;
+          while ((nlIndex = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, nlIndex).trim();
+            buffer = buffer.slice(nlIndex + 1);
+            if (!line.startsWith('data:')) continue;
+            try {
+              const evt = JSON.parse(line.slice(5).trim());
+              if (evt.delta) {
+                if (firstToken) { setIsTyping(false); firstToken = false; }
+                pushDelta(evt.delta);
+              }
+            } catch {
+              // ignore keep-alive / partial lines
+            }
+          }
+        }
+      } else {
+        // Fallback: non-streaming JSON response
+        const data = await res.json();
+        if (data.success) pushDelta(data.response);
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'luna', text: "I'm having trouble linking with my central database right now. Let me know if you would like me to retry." }]);
+      if (!appended) {
+        setMessages(prev => [...prev, { id: lunaId, sender: 'luna', text: "I'm having trouble linking with my central database right now. Let me know if you would like me to retry." }]);
+      }
     } finally {
       setIsTyping(false);
     }
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: showRAGInspector ? '2fr 1fr' : '1fr', gap: '24px', transition: 'all 250ms ease' }}>
+    <div className="aura-chat-grid-wrapper" style={{ display: 'grid', gridTemplateColumns: showRAGInspector ? '2fr 1fr' : '1fr', gap: '24px', transition: 'all 250ms ease' }}>
       
       {/* Conversation Area */}
       <div className="aura-card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)' }}>

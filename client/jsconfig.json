@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "checkJs": false,
+    "baseUrl": ".",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

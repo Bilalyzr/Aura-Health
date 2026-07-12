@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Key, Eye, ToggleLeft, ToggleRight, Check, ShoppingBag, Truck } from 'lucide-react';
+import { Users, Key, Eye, ToggleLeft, ToggleRight, Check, ShoppingBag, Truck, Heart, Sparkles, Send, Flame } from 'lucide-react';
 
 export default function PartnerRoom({ token, API_BASE, user, dashboardData, consents, handleGrantConsent, handleRevokeConsent, showToast }) {
   const [pairingKey, setPairingKey] = useState('');
   const [partnerEmail, setPartnerEmail] = useState('');
   const [orders, setOrders] = useState([]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [sendingNudgeType, setSendingNudgeType] = useState(null);
   
   // Unbundled Consent States
   const [shareCycle, setShareCycle] = useState(true);
@@ -68,7 +69,7 @@ export default function PartnerRoom({ token, API_BASE, user, dashboardData, cons
         body: JSON.stringify({
           itemName,
           price,
-          patientId: user.userType === 'patient' ? user._id : linkedUser.userId
+          patientId: user.userType === 'patient' ? user._id : (linkedUser.userId?._id || linkedUser.userId)
         })
       });
       const data = await res.json();
@@ -81,6 +82,91 @@ export default function PartnerRoom({ token, API_BASE, user, dashboardData, cons
     } finally {
       setIsPlacingOrder(false);
     }
+  };
+
+  const handleSendNudge = async (type, label) => {
+    if (!linkedUser) return;
+    setSendingNudgeType(type);
+    try {
+      const res = await fetch(`${API_BASE}/partner/nudges`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type,
+          message: `${user.fullName} sent you a ${label}: "Thinking of you today!" ❤️`,
+          receiverId: linkedUser.userId?._id || linkedUser.userId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`${label} Sent!`);
+      }
+    } catch (err) {
+      console.error("Nudge error:", err);
+    } finally {
+      setSendingNudgeType(null);
+    }
+  };
+
+  const renderEmpathyGuidance = () => {
+    const phase = dashboardData?.phase || 'follicular';
+    let tipTitle = "";
+    let tipText = "";
+    
+    if (phase === 'menstrual') {
+      tipTitle = "❤️ Menstrual Phase (Low Estrogen)";
+      tipText = "Her energy levels are at their lowest right now, and physical cramping is likely. Avoid scheduling high-energy outings. Offer deep reassurance, prepare warm beverages, or order the Spearmint Relief Tea & Hot Pack.";
+    } else if (phase === 'follicular') {
+      tipTitle = "🌸 Follicular Phase (Rising Estrogen)";
+      tipText = "Estrogen is surging, bringing high energy, communication confidence, and cognitive focus. This is a wonderful window to plan active dates, collaborative projects, or try new things together.";
+    } else if (phase === 'ovulatory') {
+      tipTitle = "✨ Ovulatory Phase (Peak Estrogen & Testosterone)";
+      tipText = "Peak physical energy and positive social confidence. Support her by planning outgoing activities, high-engagement exercises, or scheduling quality time together.";
+    } else {
+      tipTitle = "🌙 Luteal Phase / PMS Window";
+      tipText = "Progesterone dominates, which can trigger mood sensitivities, premenstrual anxiety, or sleep disturbances (especially in PMDD). Avoid high-sodium meals, offer a comforting ear, and give plenty of reassurance.";
+    }
+
+    return (
+      <div className="aura-card" style={{ background: 'var(--color-accent-light)', borderLeft: '4px solid var(--color-accent)', padding: '16px', marginBottom: '24px' }}>
+        <h4 style={{ margin: '0 0 8px 0', color: 'var(--color-primary-dark)', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sparkles size={16} style={{ color: 'var(--color-accent)' }}/> Empathy Support Tip
+        </h4>
+        <strong style={{ fontSize: '13px', display: 'block', marginBottom: '4px', color: 'var(--color-primary-dark)' }}>{tipTitle}</strong>
+        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', lineHeight: '1.4', margin: 0 }}>{tipText}</p>
+      </div>
+    );
+  };
+
+  const renderOrderStepper = (status) => {
+    let step = 1;
+    if (status.includes('Dispatched')) step = 2;
+    if (status.includes('Courier')) step = 3;
+    if (status.includes('Delivered')) step = 4;
+
+    return (
+      <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--color-text-muted)' }}>
+          <span style={{ fontWeight: step >= 1 ? 'bold' : 'normal', color: step >= 1 ? 'var(--color-primary)' : 'inherit' }}>Ordered</span>
+          <span style={{ fontWeight: step >= 2 ? 'bold' : 'normal', color: step >= 2 ? 'var(--color-primary)' : 'inherit' }}>Prepared</span>
+          <span style={{ fontWeight: step >= 3 ? 'bold' : 'normal', color: step >= 3 ? 'var(--color-primary)' : 'inherit' }}>Out for Delivery</span>
+          <span style={{ fontWeight: step >= 4 ? 'bold' : 'normal', color: step >= 4 ? 'var(--color-success)' : 'inherit' }}>Delivered</span>
+        </div>
+        <div style={{ height: '6px', background: '#EFE3ED', borderRadius: '3px', position: 'relative', overflow: 'hidden' }}>
+          <div 
+            style={{ 
+              height: '100%', 
+              background: step === 4 ? 'var(--color-success)' : 'var(--color-primary)', 
+              width: `${(step / 4) * 100}%`,
+              transition: 'width 300ms ease'
+            }}
+          ></div>
+        </div>
+      </div>
+    );
   };
 
   const handlePairSubmit = (e) => {
@@ -107,7 +193,7 @@ export default function PartnerRoom({ token, API_BASE, user, dashboardData, cons
       <div 
         className="aura-card aura-glass" 
         style={{ 
-          border: '1px solid rgba(139, 90, 140, 0.25)', 
+          border: '1px solid var(--color-primary-border-translucent)', 
           background: 'rgba(255, 255, 255, 0.8)',
           boxShadow: 'var(--shadow-md)',
           marginBottom: '24px'
@@ -270,6 +356,8 @@ export default function PartnerRoom({ token, API_BASE, user, dashboardData, cons
           {/* Simulator & Details */}
           <div>
             {renderSyncSimulator()}
+
+            {user?.userType === 'partner' && renderEmpathyGuidance()}
             
             {/* Courier Delivery Order Placement System */}
             {user?.userType === 'partner' && (
@@ -312,6 +400,48 @@ export default function PartnerRoom({ token, API_BASE, user, dashboardData, cons
                 </div>
               </div>
             )}
+
+            {/* Live Empathetic Nudges Card */}
+            {user?.userType === 'partner' && (
+              <div className="aura-card" style={{ marginTop: '24px' }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Heart size={18} style={{ color: 'var(--color-accent)' }}/> Empathetic Nudges
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '16px' }}>Send virtual encouragement or reminders that appear instantly on her screen.</p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <button 
+                    disabled={sendingNudgeType !== null} 
+                    onClick={() => handleSendNudge('hug', 'Virtual Hug')} 
+                    className="aura-btn aura-btn-secondary aura-btn-sm" 
+                    style={{ background: 'white', display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px 8px', height: 'auto', alignItems: 'center' }}
+                  >
+                    <span style={{ fontSize: '20px' }}>🤗</span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Send Hug</span>
+                  </button>
+
+                  <button 
+                    disabled={sendingNudgeType !== null} 
+                    onClick={() => handleSendNudge('hydration', 'Hydration Nudge')} 
+                    className="aura-btn aura-btn-secondary aura-btn-sm" 
+                    style={{ background: 'white', display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px 8px', height: 'auto', alignItems: 'center' }}
+                  >
+                    <span style={{ fontSize: '20px' }}>💧</span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Nudge Water</span>
+                  </button>
+
+                  <button 
+                    disabled={sendingNudgeType !== null} 
+                    onClick={() => handleSendNudge('support', 'Reassurance Note')} 
+                    className="aura-btn aura-btn-secondary aura-btn-sm" 
+                    style={{ background: 'white', display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px 8px', height: 'auto', alignItems: 'center' }}
+                  >
+                    <span style={{ fontSize: '20px' }}>💜</span>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Send Love</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Orders History List */}
@@ -335,7 +465,8 @@ export default function PartnerRoom({ token, API_BASE, user, dashboardData, cons
                       <Truck size={12}/>
                       <span>{ord.status}</span>
                     </div>
-                    <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', marginTop: '4px', textAlign: 'right' }}>
+                    {renderOrderStepper(ord.status)}
+                    <div style={{ fontSize: '9px', color: 'var(--color-text-muted)', marginTop: '8px', textAlign: 'right' }}>
                       Ordered at: {new Date(ord.createdAt).toLocaleString()}
                     </div>
                   </div>

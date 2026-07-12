@@ -67,7 +67,8 @@ export const getCycleDayAndPhase = (startDate, today = new Date()) => {
   
   const diffTime = current - start;
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  const day = ((diffDays - 1) % 28) + 1; // Normalize to 28-day cycle for simulation
+  // Positive modulo so a future-dated start never yields a zero/negative day
+  const day = (((diffDays - 1) % 28) + 28) % 28 + 1; // Normalize to 28-day cycle for simulation
   
   let phase = 'follicular';
   if (day <= 5) phase = 'menstrual';
@@ -130,6 +131,32 @@ export const generateDailyRoutine = (user, cycle, recentLogs = []) => {
   // 2. Determine cycle phase
   const { day, phase } = getCycleDayAndPhase(cycle?.startDate);
 
+  // 2.5 Wearable Telemetry Adaptations
+  const latestTelemetry = user.telemetryLogs && user.telemetryLogs.length > 0
+    ? user.telemetryLogs[user.telemetryLogs.length - 1]
+    : null;
+
+  if (latestTelemetry) {
+    if (latestTelemetry.sleepHours && latestTelemetry.sleepHours < 6.5) {
+      items.push({
+        id: 'telemetry-restorative-sleep',
+        title: `Restorative Rest Session (Low Sleep: ${latestTelemetry.sleepHours}h)`,
+        category: 'exercise',
+        completed: false,
+        rationale: `Wearable synced sleep is under 6.5 hours. Prioritize a 20-minute restorative yoga or power nap instead of intense cardio.`
+      });
+    }
+    if (latestTelemetry.hrv && latestTelemetry.hrv < 45) {
+      items.push({
+        id: 'telemetry-stress-relief',
+        title: `CalmPulse Vagal Breathing (Low HRV: ${latestTelemetry.hrv}ms)`,
+        category: 'mindset',
+        completed: false,
+        rationale: `Synced Heart Rate Variability is low, indicating sympathetic dominance. Perform 5 minutes of guided 4-4-4-4 breathing.`
+      });
+    }
+  }
+
   // 3. Add General Cycle Phase Routine Items
   const phaseContent = CONTENT_LIBRARY.general[phase] || [];
   phaseContent.forEach((item, index) => {
@@ -185,7 +212,7 @@ export const generateDailyRoutine = (user, cycle, recentLogs = []) => {
     });
   } else {
     // Standard recommendations
-    if (user.conditionTags.includes('pcos')) {
+    if (user.conditionTags && user.conditionTags.includes('pcos')) {
       recommendations.push({
         title: "Focus on Complex Carbohydrates",
         description: "Choose brown rice, oats, and quinoa. They keep blood sugar levels stable, reducing PCOS cravings and androgen spikes.",

@@ -35,6 +35,25 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['pcos', 'endometriosis', 'pmdd']
   }],
+  lifeStage: {
+    type: String,
+    default: ''
+  },
+  surveyAnswers: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+  consentAggregated: {
+    type: Boolean,
+    default: false
+  },
+  locale: {
+    type: String,
+    default: 'en'
+  },
+  accessibilityAccommodations: [{
+    type: String
+  }],
   linkedAccounts: [linkedAccountSchema],
   preferences: {
     theme: { type: String, default: 'light' },
@@ -53,6 +72,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  telemetryLogs: [{
+    timestamp: { type: Date, default: Date.now },
+    sleepHours: Number,
+    sleepQuality: String,
+    basalBodyTemp: Number,
+    hrv: Number,
+    source: String
+  }],
   deletedAt: {
     type: Date,
     default: null
